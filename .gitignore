@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Data files (large)
+data/
+
+# Output features (large CSVs)
+output/features/
+
+# Output WEKA files
+output/weka/
+
+# ROC data (large npz)
+output/classification/roc_data/
+*.npz
+
+# Temporary files
+temp_*
+*.tmp
+
+# Logs
+output/classification/run_log.txt
+output/classification/warnings.log
+
+# IDE
+.vscode/
+.idea/
