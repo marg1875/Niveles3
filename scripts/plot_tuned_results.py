@@ -62,7 +62,7 @@ SVM_DEFAULT_ACC = {
 }
 
 # Per-patient tuned SVM (if available) or use defaults
-PATIENT_LABELS = ["Px.006", "Px.007", "Px.008", "Px.009", "Px.010"]
+PATIENT_LABELS = ["P1", "P2", "P3", "P4", "P5"]
 
 
 def plot_svm_evolution():

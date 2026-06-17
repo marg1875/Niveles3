@@ -9,7 +9,7 @@
 
 ## Resumen
 
-Se evaluo un pipeline de clasificacion de niveles de fuerza en Motor Imagery (MI) post-Accidente Cerebrovascular (AVC) combinando caracteristicas fractales (Rescaled Range, Higuchi, Detrended Fluctuation Analysis, Semivariograma, Promedio, Hurst Original, Hurst R/S con Particiones, Hurst via Semivariograma) y caracteristicas espectrales (potencias de banda δ/θ/α/β/γ, ratios de Desincronizacion Relacionada a Eventos, entropia espectral, ratio α/β, ratio μ/β). Sobre 5 pacientes (Px.006-Px.010) con registros EEG de 16 canales a 250 Hz en tres momentos temporales (Mes 1, Mes 3, Mes 6), se optimizo el tamano de ventana mediante un barrido empirico de 16 tamanos (2.0s–8.0s) determinando W=700 muestras (2.8 s) como la configuracion optima. Empleando validacion intra-sujeto con StratifiedKFold (k=5) y pool de predicciones, la combinacion Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales alcanzo **93.27% de accuracy** (F1=0.9326) en el Mes 1 con Regresion Logistica, superando el objetivo del 80%. Las caracteristicas espectrales demostraron ser el factor dominante (88–93% en solitario), mientras que las caracteristicas fractales puras (8 metodos) alcanzaron hasta 84% sin asistencia espectral, validando su capacidad discriminativa independiente del nivel de fuerza imaginado.
+Se evaluo un pipeline de clasificacion de niveles de fuerza en Motor Imagery (MI) post-Accidente Cerebrovascular (AVC) combinando caracteristicas fractales (Rescaled Range, Higuchi, Detrended Fluctuation Analysis, Semivariograma, Promedio, Hurst Original, Hurst R/S con Particiones, Hurst via Semivariograma) y caracteristicas espectrales (potencias de banda δ/θ/α/β/γ, ratios de Desincronizacion Relacionada a Eventos, entropia espectral, ratio α/β, ratio μ/β). Sobre 5 pacientes (P1-P5) con registros EEG de 16 canales a 250 Hz en tres momentos temporales (Mes 1, Mes 3, Mes 6), se optimizo el tamano de ventana mediante un barrido empirico de 16 tamanos (2.0s–8.0s) determinando W=700 muestras (2.8 s) como la configuracion optima. Empleando validacion intra-sujeto con StratifiedKFold (k=5) y pool de predicciones, la combinacion Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales alcanzo **93.27% de accuracy** (F1=0.9326) en el Mes 1 con Regresion Logistica, superando el objetivo del 80%. Las caracteristicas espectrales demostraron ser el factor dominante (88–93% en solitario), mientras que las caracteristicas fractales puras (8 metodos) alcanzaron hasta 84% sin asistencia espectral, validando su capacidad discriminativa independiente del nivel de fuerza imaginado.
 
 ---
 
@@ -35,7 +35,9 @@ El presente estudio adapta y extiende dicho enfoque con las siguientes contribuc
 
 | Propiedad | Valor |
 |-----------|-------|
-| Pacientes | 5 (Px.006–Px.010) |
+| Pacientes | 5 (P1–P5) |
+
+> **Nota de anonimizacion:** Los identificadores originales Px.006–Px.010 se renombraron como P1–P5 respectivamente.
 | Meses | 1, 3, 6 post-AVC |
 | Archivos .mat | 56 (28 sincronicos + 28 asincronicos) |
 | Canales EEG | 16 (montaje internacional 10-20) |
@@ -151,7 +153,7 @@ Para cada paciente, se aplica StratifiedKFold con k=5 (o menos si las clases dis
 | Mixto (Mixed) | 2,967 | Todos los meses combinados |
 | Mes 1 | 980 | Solo Month1 |
 | Mes 3 | 1,100 | Solo Month3 |
-| Mes 6 | 887 | Solo Month6 (4 pacientes, Px.010 sin datos) |
+| Mes 6 | 887 | Solo Month6 (4 pacientes, P5 sin datos) |
 
 **Modelos evaluados (5):**
 
@@ -348,7 +350,7 @@ Para aislar la contribucion especifica de cada familia de caracteristicas, se ev
 | 6 (Cronico) | RandomForest | 92.90% | 0.9290 | 887 | 4* |
 | Mixto | RandomForest | 89.48% | 0.8948 | 2,967 | 5 |
 
-*Px.010 sin datos de Mes 6.
+*P5 sin datos de Mes 6.
 
 ### 7.2 Observaciones
 
@@ -493,11 +495,11 @@ El hallazgo mas significativo de este estudio es que las caracteristicas espectr
 
 | Paciente | Mes 1 (MVR 10/40) | Mes 3 (MVR 10/40) | Mes 6 (MVR 10/40) | Total |
 |----------|-------------------|-------------------|-------------------|-------|
-| Px.006 | 117 / 156 | 117 / 156 | 78 / 117 | 741 |
-| Px.007 | 117 / 156 | 117 / 156 | 117 / 117 | 780 |
-| Px.008 | 116 / 155 | 117 / 156 | 117 / 156 | 817 |
-| Px.009 | 78 / 117 | 117 / 156 | 117 / 156 | 741 |
-| Px.010 | 78 / 117 | 117 / 156 | 0 / 0 | 468 |
+| P1 | 117 / 156 | 117 / 156 | 78 / 117 | 741 |
+| P2 | 117 / 156 | 117 / 156 | 117 / 117 | 780 |
+| P3 | 116 / 155 | 117 / 156 | 117 / 156 | 817 |
+| P4 | 78 / 117 | 117 / 156 | 117 / 156 | 741 |
+| P5 | 78 / 117 | 117 / 156 | 0 / 0 | 468 |
 | **Total** | **980** | **1,100** | **887** | **2,967** |
 
 ### B.2 Archivos procesados

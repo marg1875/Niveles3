@@ -10,7 +10,7 @@
 
 ## Resumen
 
-Se evaluo la capacidad de siete algoritmos fractales —Rescaled Range, Higuchi, Detrended Fluctuation Analysis (DFA), Semivariograma, Hurst Original, Hurst Rescaled Range con Particiones y Hurst via Semivariograma— para clasificar niveles de fuerza en Motor Imagery (MI) post-Accidente Cerebrovascular (AVC). Sobre 5 pacientes (Px.006-Px.010) con registros EEG de 16 canales a 250 Hz en tres momentos temporales (Mes 1, Mes 3, Mes 6 post-AVC), se optimizo el tamano de ventana mediante un barrido de 16 tamanos (2.0–8.0s) determinando W=700 muestras (2.8s) como la configuracion optima. Cada algoritmo fractal se evaluo como caracteristica unica (promedio espacial) y en configuracion per-electrodo (retener informacion espacial), siguiendo la metodologia de Martinez-Peon et al. (2024, _J. Neural Eng._ 21, 046024). Para abordar el desbalance de clases en la clasificacion 3-clases (280 reposo vs 1332/1355), se incorporo SMOTE (Synthetic Minority Over-sampling Technique) aplicado exclusivamente al conjunto de entrenamiento dentro de cada fold. Empleando validacion intra-sujeto StratifiedKFold (k=5) con pool de predicciones y caracteristicas per-electrodo de 4 metodos basicos (RS, Higuchi, DFA, Variogram × 16 canales = 64 features), se alcanzo **85.46% de accuracy en 3-clases** (Reposo/10%/40%) en el Mes 6 con SVM tuneado (C=12, rbf, gamma=0.02, κ=0.7573). El rendimiento del clasificador SVM muestra una **convergencia temporal progresiva**: Mes 1 (70.51%) → Mes 3 (84.27%) → Mes 6 (85.46%), correlacionandose con la recuperacion neurologica post-AVC. En 2-clases (10% vs 40%) con LogisticRegression, se alcanzo **95.54% en el Mes 6** (κ=0.9108). Los resultados demuestran que la combinacion de caracteristicas fractales per-electrodo con SMOTE produce mejoras sustanciales sobre el promedio espacial (+17.8 puntos en 3-clases), y que un clasificador lineal basico (SVM con kernel RBF) es suficiente para capturar la progresion temporal de la senal fractal, sin necesidad de arquitecturas complejas.
+Se evaluo la capacidad de siete algoritmos fractales —Rescaled Range, Higuchi, Detrended Fluctuation Analysis (DFA), Semivariograma, Hurst Original, Hurst Rescaled Range con Particiones y Hurst via Semivariograma— para clasificar niveles de fuerza en Motor Imagery (MI) post-Accidente Cerebrovascular (AVC). Sobre 5 pacientes (P1-P5) con registros EEG de 16 canales a 250 Hz en tres momentos temporales (Mes 1, Mes 3, Mes 6 post-AVC), se optimizo el tamano de ventana mediante un barrido de 16 tamanos (2.0–8.0s) determinando W=700 muestras (2.8s) como la configuracion optima. Cada algoritmo fractal se evaluo como caracteristica unica (promedio espacial) y en configuracion per-electrodo (retener informacion espacial), siguiendo la metodologia de Martinez-Peon et al. (2024, _J. Neural Eng._ 21, 046024). Para abordar el desbalance de clases en la clasificacion 3-clases (280 reposo vs 1332/1355), se incorporo SMOTE (Synthetic Minority Over-sampling Technique) aplicado exclusivamente al conjunto de entrenamiento dentro de cada fold. Empleando validacion intra-sujeto StratifiedKFold (k=5) con pool de predicciones y caracteristicas per-electrodo de 4 metodos basicos (RS, Higuchi, DFA, Variogram × 16 canales = 64 features), se alcanzo **85.46% de accuracy en 3-clases** (Reposo/10%/40%) en el Mes 6 con SVM tuneado (C=12, rbf, gamma=0.02, κ=0.7573). El rendimiento del clasificador SVM muestra una **convergencia temporal progresiva**: Mes 1 (70.51%) → Mes 3 (84.27%) → Mes 6 (85.46%), correlacionandose con la recuperacion neurologica post-AVC. En 2-clases (10% vs 40%) con LogisticRegression, se alcanzo **95.54% en el Mes 6** (κ=0.9108). Los resultados demuestran que la combinacion de caracteristicas fractales per-electrodo con SMOTE produce mejoras sustanciales sobre el promedio espacial (+17.8 puntos en 3-clases), y que un clasificador lineal basico (SVM con kernel RBF) es suficiente para capturar la progresion temporal de la senal fractal, sin necesidad de arquitecturas complejas.
 
 ---
 
@@ -50,7 +50,9 @@ Investigaciones previas han aplicado variantes del exponente de Hurst a la clasi
 
 | Propiedad | Valor |
 |-----------|-------|
-| Pacientes | 5 (Px.006–Px.010) |
+| Pacientes | 5 (P1–P5) |
+
+> **Nota:** Los identificadores originales P1–P5 se renombraron como P1–P5 respectivamente para anonimizacion y claridad.
 | Meses post-AVC | 1, 3, 6 |
 | Archivos .mat | 56 (28 sincronicos + 28 asincronicos) |
 | Canales EEG | 16 (Fp1, Fp3, F3, Fz, F4, Cz, Pz, P5, P3, O1, Oz, T8, P8, P6, P4, T7) |
@@ -347,38 +349,38 @@ Desglose del rendimiento individual por paciente para la configuracion optima (6
 
 | Paciente | Epocas | Distribucion (0/10/40) | Accuracy | F1 Macro | Kappa |
 |----------|--------|----------------------|----------|----------|-------|
-| Px.006 | 220 | 20 / 100 / 100 | 57.73% | 0.4632 | +0.3050 |
-| Px.007 | 220 | 20 / 100 / 100 | 86.82% | 0.7779 | +0.7675 |
-| Px.008 | 220 | 20 / 100 / 100 | 78.18% | 0.6378 | +0.6282 |
-| Px.009 | 124 | 20 / 52 / 52 | 63.71% | 0.5708 | +0.4264 |
-| Px.010 | 196 | 20 / 76 / 100 | 83.67% | 0.6978 | +0.7216 |
+| P1 | 220 | 20 / 100 / 100 | 57.73% | 0.4632 | +0.3050 |
+| P2 | 220 | 20 / 100 / 100 | 86.82% | 0.7779 | +0.7675 |
+| P3 | 220 | 20 / 100 / 100 | 78.18% | 0.6378 | +0.6282 |
+| P4 | 124 | 20 / 52 / 52 | 63.71% | 0.5708 | +0.4264 |
+| P5 | 196 | 20 / 76 / 100 | 83.67% | 0.6978 | +0.7216 |
 | **POOL** | **980** | **100 / 428 / 452** | **74.80%** | **0.6266** | **+0.5758** |
 
 #### 5.5.2 Mes 3 (fase sub-aguda)
 
 | Paciente | Epocas | Distribucion (0/10/40) | Accuracy | F1 Macro | Kappa |
 |----------|--------|----------------------|----------|----------|-------|
-| Px.006 | 220 | 20 / 100 / 100 | 86.82% | 0.7414 | +0.7728 |
-| Px.007 | 220 | 20 / 100 / 100 | 83.64% | 0.7355 | +0.7211 |
-| Px.008 | 220 | 20 / 100 / 100 | 85.45% | 0.7816 | +0.7556 |
-| Px.009 | 220 | 20 / 100 / 100 | 74.55% | 0.6622 | +0.5698 |
-| Px.010 | 220 | 20 / 100 / 100 | 85.91% | 0.7091 | +0.7571 |
+| P1 | 220 | 20 / 100 / 100 | 86.82% | 0.7414 | +0.7728 |
+| P2 | 220 | 20 / 100 / 100 | 83.64% | 0.7355 | +0.7211 |
+| P3 | 220 | 20 / 100 / 100 | 85.45% | 0.7816 | +0.7556 |
+| P4 | 220 | 20 / 100 / 100 | 74.55% | 0.6622 | +0.5698 |
+| P5 | 220 | 20 / 100 / 100 | 85.91% | 0.7091 | +0.7571 |
 | **POOL** | **1100** | **100 / 500 / 500** | **83.27%** | **0.7282** | **+0.7149** |
 
 #### 5.5.3 Mes 6 (fase cronica, 4 pacientes)
 
 | Paciente | Epocas | Distribucion (0/10/40) | Accuracy | F1 Macro | Kappa |
 |----------|--------|----------------------|----------|----------|-------|
-| Px.006 | 221 | 20 / 100 / 101 | 76.92% | 0.6302 | +0.6193 |
-| Px.007 | 220 | 20 / 100 / 100 | 85.45% | 0.7652 | +0.7542 |
-| Px.008 | 222 | 20 / 102 / 100 | **91.44%** | 0.8378 | +0.8511 |
-| Px.009 | 224 | 20 / 102 / 102 | 79.46% | 0.6560 | +0.6512 |
+| P1 | 221 | 20 / 100 / 101 | 76.92% | 0.6302 | +0.6193 |
+| P2 | 220 | 20 / 100 / 100 | 85.45% | 0.7652 | +0.7542 |
+| P3 | 222 | 20 / 102 / 100 | **91.44%** | 0.8378 | +0.8511 |
+| P4 | 224 | 20 / 102 / 102 | 79.46% | 0.6560 | +0.6512 |
 | **POOL** | **887** | **80 / 404 / 403** | **83.31%** | **0.7155** | **+0.7174** |
 
 **Observaciones per-paciente (LogisticRegression):**
 
-1. **Px.009 es consistentemente el paciente mas dificil** con LogisticRegression (63.71%–79.46%), pero mejora significativamente con SVM (83.9% en Mes 6, +4.4 pts).
-2. **Px.008 alcanza 91.44% en el Mes 6** con LogisticRegression y 90.5% con SVM — consistente en ambos clasificadores, patrones fractales altamente discriminativos en fase cronica.
+1. **P4 es consistentemente el paciente mas dificil** con LogisticRegression (63.71%–79.46%), pero mejora significativamente con SVM (83.9% en Mes 6, +4.4 pts).
+2. **P3 alcanza 91.44% en el Mes 6** con LogisticRegression y 90.5% con SVM — consistente en ambos clasificadores, patrones fractales altamente discriminativos en fase cronica.
 3. La **variabilidad entre pacientes** se reduce con SVM (rango Mes 6: 77.8%–90.5% vs 79.5%–91.4% con LogReg), sugiriendo que el kernel RBF generaliza mejor a traves de pacientes.
 4. El POOL es ligeramente inferior al promedio simple porque esta ponderado por el numero de epocas de cada paciente.
 
@@ -386,10 +388,10 @@ Desglose del rendimiento individual por paciente para la configuracion optima (6
 
 | Paciente | SVM Accuracy |
 |----------|-------------|
-| Px.006 | 77.8% |
-| Px.007 | 89.5% |
-| Px.008 | 90.5% |
-| Px.009 | 83.9% |
+| P1 | 77.8% |
+| P2 | 89.5% |
+| P3 | 90.5% |
+| P4 | 83.9% |
 | **Mean ± Std** | **85.46% ± 5.1%** |
 
 ---
@@ -748,11 +750,11 @@ Los resultados demuestran que **la combinacion de caracteristicas fractales per-
 
 | Paciente | Mes 1 (0/10/40) | Mes 3 (0/10/40) | Mes 6 (0/10/40) | Total |
 |----------|-----------------|-----------------|-----------------|-------|
-| Px.006 | 20/97/156 | 20/97/156 | 15/63/117 | 741 |
-| Px.007 | 20/97/156 | 20/97/156 | 20/97/117 | 780 |
-| Px.008 | 20/96/155 | 20/97/156 | 20/97/156 | 817 |
-| Px.009 | 15/63/117 | 20/97/156 | 20/97/156 | 741 |
-| Px.010 | 15/63/117 | 20/97/156 | 0/0/0 | 468 |
+| P1 | 20/97/156 | 20/97/156 | 15/63/117 | 741 |
+| P2 | 20/97/156 | 20/97/156 | 20/97/117 | 780 |
+| P3 | 20/96/155 | 20/97/156 | 20/97/156 | 817 |
+| P4 | 15/63/117 | 20/97/156 | 20/97/156 | 741 |
+| P5 | 15/63/117 | 20/97/156 | 0/0/0 | 468 |
 | **Total** | **100/416/701** | **100/485/780** | **75/354/546** | **2,967** |
 
 *Clase 0 = Reposo (primeros 5 segmentos de cada archivo).

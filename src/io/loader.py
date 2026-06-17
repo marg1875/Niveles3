@@ -76,7 +76,7 @@ def parse_metadata(filepath: str) -> Dict[str, Any]:
     name_lower = basename.lower()
     is_imagery = any(kw in name_lower for kw in cfg.IMAGERY_KEYWORDS)
 
-    # --- MVR level (check 40 BEFORE 10 to avoid false match on IDs like Px.010) ---
+    # --- MVR level (check 40 BEFORE 10 to avoid false match on IDs like Px.0010) ---
     has_40 = bool(re.search(r"_40[^0-9]|_40$|40img|40%|_40img", name_lower))
     has_10 = bool(re.search(r"_10[^0-9]|_10$|10img|10%", name_lower)) and not has_40
 

@@ -26,7 +26,7 @@ MODELS = {
     "RandomForest": RandomForestClassifier(n_estimators=300, random_state=42, n_jobs=-1),
     "SVM": SVC(random_state=42, probability=True),
 }
-PATIENTS = ["Px.006", "Px.007", "Px.008", "Px.009", "Px.010"]
+PATIENTS = ["P1", "P2", "P3", "P4", "P5"]
 
 
 def build_per_channel_columns(df, methods, channels):

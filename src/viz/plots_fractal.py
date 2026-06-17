@@ -36,8 +36,10 @@ plt.rcParams.update({
 
 # Professional palette
 C_PALETTE = ["#2166AC", "#4393C3", "#92C5DE", "#D1E5F0", "#F4A582", "#D6604D", "#B2182B"]
-C_PATIENT = {"Px.006": "#2166AC", "Px.007": "#4393C3", "Px.008": "#7570B3",
-             "Px.009": "#D6604D", "Px.010": "#B2182B"}
+C_PATIENT = {"P1": "#2166AC", "P2": "#4393C3", "P3": "#7570B3",
+             "P4": "#D6604D", "P5": "#B2182B"}
+
+PATIENT_MAP = {"Px.006": "P1", "Px.007": "P2", "Px.008": "P3", "Px.009": "P4", "Px.010": "P5"}
 C_CLASS = {0: "#4DAF4A", 10: "#377EB8", 40: "#E41A1C"}
 C_MONTHS = {"Mes 1": "#377EB8", "Mes 3": "#4DAF4A", "Mes 6": "#E41A1C"}
 
@@ -135,9 +137,10 @@ def plot_accuracy_per_patient(output_dir=None):
     for ax_idx, (mlabel, mval) in enumerate(months):
         ax = axes[ax_idx]
         pat_res, pool_acc, _, N = _run_per_patient(df_raw, mlabel, mval, feat_cols)
-        present = [p for p in patients_all if p in pat_res and not np.isnan(pat_res[p]["acc"])]
-        accs = [pat_res[p]["acc"] * 100 for p in present]
-        colors = [C_PATIENT.get(p, "#888888") for p in present]
+        present_raw = [p for p in patients_all if p in pat_res and not np.isnan(pat_res[p]["acc"])]
+        present = [PATIENT_MAP.get(p, p) for p in present_raw]
+        accs = [pat_res[p]["acc"] * 100 for p in present_raw]
+        colors = [C_PATIENT.get(PATIENT_MAP.get(p, p), "#888888") for p in present_raw]
         x = np.arange(len(present))
         bars = ax.bar(x, accs, color=colors, edgecolor="white", linewidth=0.8)
         ax.axhline(y=pool_acc * 100, color="#333333", linestyle="--", linewidth=1.2)

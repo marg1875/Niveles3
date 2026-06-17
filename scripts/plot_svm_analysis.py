@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import seaborn as sns
 
+PATIENT_MAP = {"Px.006": "P1", "Px.007": "P2", "Px.008": "P3", "Px.009": "P4", "Px.010": "P5"}
+
 warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config as cfg
@@ -110,8 +112,9 @@ def plot_confusion_matrix_tuned(cm, accuracy):
 
 
 def plot_accuracy_per_patient_tuned(patient_accs, month_label):
-    patients = list(patient_accs.keys())
-    accs = [patient_accs[p] * 100 for p in patients]
+    patients_raw = list(patient_accs.keys())
+    patients = [PATIENT_MAP.get(p, p) for p in patients_raw]
+    accs = [patient_accs[p] * 100 for p in patients_raw]
     mean_acc = np.mean(accs)
     std_acc = np.std(accs)
 
@@ -177,7 +180,7 @@ def main():
         std_pat = np.std(list(patient_accs.values())) * 100
 
         print(f"{month_label}: Pool={pool_acc:.2f}%  PatMean={mean_pat:.2f}%+-{std_pat:.1f}  "
-              f"Per-patient: {{{', '.join(f'{k}: {v*100:.1f}%' for k, v in patient_accs.items())}}}")
+              f"Per-patient: {{{', '.join(f'{PATIENT_MAP.get(k,k)}: {v*100:.1f}%' for k, v in patient_accs.items())}}}")
 
         if month_label == "Mes 6":
             plot_confusion_matrix_tuned(cm, pool_acc)
