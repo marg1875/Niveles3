@@ -424,6 +424,29 @@ Se realizo una busqueda manual de hiperparametros (Grid Search) para los 7 clasi
 
 **Nuevo estado del arte interno:** SVM tuneado (C=10, rbf, gamma=scale) con Basic per-channel + SMOTE alcanza **85.12% en 3-clases Mes 6**, reduciendo la brecha al objetivo del 90% a **4.88 puntos**.
 
+#### 5.6.1 Fine-Tuning SVM y LogReg (refinamiento alrededor del optimo)
+
+Se realizo una segunda ronda de busqueda enfocada exclusivamente en SVM y LogReg con mallas mas finas alrededor de los optimos detectados (C=[5-20], gamma numericos finos, kernel polinomial para SVM, penalizaciones L1/ElasticNet para LogReg). Se evaluaron 380 combinaciones adicionales.
+
+**Tabla 5.5: Fine-Tuning SVM y LogReg**
+
+| Modelo | Mes | Best Previo | Fine-Tuned | Delta | Mejores parametros |
+|--------|-----|------------|-----------|-------|-------------------|
+| SVM | Mes 6 | 85.12% | **85.46%** | +0.34 | C=12, kernel=rbf, gamma=0.02 |
+| SVM | Mes 3 | 84.27% | 84.00% | -0.27 | C=10, kernel=poly, degree=2, gamma=scale, coef0=1.0 |
+| LogReg | Mes 3 | 83.27% | 83.45% | +0.18 | C=1, penalty=elasticnet, solver=saga, l1_ratio=0.5 |
+| LogReg | Mes 6 | 83.99% | 83.99% | +0.00 | Sin mejora (plafon alcanzado) |
+
+**Hallazgos del fine-tuning:**
+
+1. **El espacio de hiperparametros esta practicamente agotado.** La ganancia marginal es de apenas +0.34 puntos en el mejor caso (SVM Mes 6 con gamma=0.02).
+2. **El kernel polinomial (degree=2) es competitivo con rbf** para SVM en Mes 3 (84.00% vs 84.27%), pero no lo supera.
+3. **ElasticNet (L1+L2) en LogReg** ofrece una ganancia minima (+0.18 pts en Mes 3), sugiriendo que la mayoria de los 64 features son informativos (poco beneficio del feature selection via L1).
+4. **LogReg Mes 6 alcanzo su plafon en 83.99%** — ninguna de las 132 combinaciones adicionales (L1, L2, ElasticNet, class_weight, C fino) supero este valor.
+5. **class_weight='balanced' no aporta beneficio** cuando ya se usa SMOTE — son tecnicas redundantes para este dataset.
+
+**Conclusion del tuning:** El plafon actual del pipeline con modelos clasicos y 64 features per-channel es **85.46% en 3-clases (SVM, C=12, rbf, gamma=0.02, Mes 6)**. Alcanzar el 90% requiere estrategias de nivel superior: ensemble de clasificadores, feature selection, o arquitecturas deep learning.
+
 ---
 
 ## 6. Clasificacion 2-Clases (MVR 10% vs 40%, sin reposo, sin SMOTE)
