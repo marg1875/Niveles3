@@ -384,6 +384,48 @@ Desglose del rendimiento individual por paciente para la configuracion optima (6
 
 ---
 
+### 5.6 Hyperparameter Tuning (3-clases, per-channel Basic + SMOTE)
+
+Se realizo una busqueda manual de hiperparametros (Grid Search) para los 7 clasificadores sobre la configuracion optima (Basic per-channel 64 features, 3-clases con SMOTE) en Mes 3 y Mes 6. Se evaluaron ~250 combinaciones por mes, reportando tanto accuracy pooled como mean-per-patient.
+
+**Tabla 5.3: Mejores hiperparametros por clasificador — Mes 3**
+
+| Clasificador | Default | Tuned | Delta | Mejores parametros |
+|-------------|---------|-------|-------|-------------------|
+| SVM | 79.36% | **84.27%** | +4.91 | C=100, kernel=rbf, gamma=0.01 |
+| LogisticRegression | 83.27% | 83.27% | +0.00 | C=1, solver=lbfgs (default ya optimo) |
+| RandomForest | 80.45% | 81.36% | +0.91 | n_estimators=500, max_depth=10, min_samples_split=2 |
+| kNN | 64.64% | 75.36% | +10.72 | n_neighbors=5, metric=manhattan, weights=distance |
+| MLP | 51.73% | 75.27% | +23.54 | hidden=(14,), alpha=0.01, lr_init=0.1 |
+| DecisionTree | 72.00% | 74.36% | +2.36 | max_depth=None, min_samples_split=10, criterion=entropy |
+| NaiveBayes | 58.00% | 58.00% | +0.00 | var_smoothing=1e-10 (sin mejora) |
+
+**Tabla 5.4: Mejores hiperparametros por clasificador — Mes 6**
+
+| Clasificador | Default | Tuned | Delta | Mejores parametros |
+|-------------|---------|-------|-------|-------------------|
+| **SVM** | 80.38% | **85.12%** | **+4.74** | C=10, kernel=rbf, gamma=scale |
+| LogisticRegression | 83.31% | 83.99% | +0.68 | C=5, solver=saga |
+| RandomForest | 82.53% | 83.09% | +0.56 | n_estimators=300, max_depth=10, min_samples_split=5 |
+| kNN | 68.55% | 76.55% | +8.00 | n_neighbors=3, metric=euclidean, weights=distance |
+| MLP | 56.60% | 77.79% | +21.19 | hidden=(28,), alpha=0.0001, lr_init=0.01 |
+| DecisionTree | 76.44% | 77.34% | +0.90 | max_depth=None, min_samples_split=2, criterion=entropy |
+| NaiveBayes | 63.13% | 63.13% | +0.00 | var_smoothing=1e-10 (sin mejora) |
+
+**Hallazgos principales del tuning:**
+
+1. **SVM es el clasificador que mas se beneficia del tuning** y se convierte en el nuevo mejor modelo: **85.12% en Mes 6** (+4.74 puntos sobre default, +1.81 sobre el mejor previo de 83.31% con LogReg).
+2. **MLP es extremadamente sensible a hiperparametros**: con defaults rinde ~56% (apenas mejor que azar), pero tuneado alcanza ~78%, una ganancia de +21 puntos. El tamano de capa oculta y la tasa de aprendizaje son criticos.
+3. **kNN tambien mejora sustancialmente** (+8–11 puntos) con k pequeno (3–5) y pesos por distancia en lugar de uniformes.
+4. **LogisticRegression ya esta cerca del optimo** con sus defaults (C=1, lbfgs). Solo gana +0.7 puntos con C=5 y solver=saga.
+5. **RandomForest y DecisionTree** muestran ganancias modestas (+0.5–2.4 puntos), indicando que los defaults del paper ya son razonables.
+6. **NaiveBayes no responde al tuning** de var_smoothing — ninguna configuracion mejora el default.
+7. **Pool y Patient_Accuracy_Mean son identicos** en todas las combinaciones evaluadas, confirmando que ambas metricas son intercambiables con pacientes de similar tamano muestral.
+
+**Nuevo estado del arte interno:** SVM tuneado (C=10, rbf, gamma=scale) con Basic per-channel + SMOTE alcanza **85.12% en 3-clases Mes 6**, reduciendo la brecha al objetivo del 90% a **4.88 puntos**.
+
+---
+
 ## 6. Clasificacion 2-Clases (MVR 10% vs 40%, sin reposo, sin SMOTE)
 
 Para comparacion con estudios que utilizan tareas binarias, se presentan los resultados de clasificacion 2-clases (10% vs 40%) sin SMOTE (clases balanceadas ~1332:1355):
@@ -580,9 +622,9 @@ Los resultados demuestran que **la combinacion de caracteristicas fractales per-
 
 4. Las caracteristicas per-electrodo (**64-112 features**) superan consistentemente al promedio espacial (**7 features**) por 15-28 puntos, demostrando que **la informacion topografica de los electrodos es critica** para la clasificacion fractal de MI.
 
-5. Los **4 metodos fractales basicos** (RS, Higuchi, DFA, Variogram) superan a las **3 variantes Martinez** (HO, HRS_p64, HV) en configuracion per-electrodo (83.31% vs 63.36-77.00%), a pesar de que estas ultimas replican la metodologia del paper de referencia. Higuchi y DFA capturan aspectos de la complejidad temporal no accesibles al exponente de Hurst.
+5. Los **4 metodos fractales basicos** (RS, Higuchi, DFA, Variogram) superan a las **3 variantes Martinez** (HO, HRS_p64, HV) en configuracion per-electrodo (85.12% vs 63.36-77.00%), a pesar de que estas ultimas replican la metodologia del paper de referencia. Higuchi y DFA capturan aspectos de la complejidad temporal no accesibles al exponente de Hurst.
 
-6. El **Mes 6 post-AVC** (fase cronica) emerge como el momento optimo para la clasificacion fractal per-electrodo (83.31% en 3-clases, 95.54% en 2-clases), seguido del Mes 3 (83.27% y 91.60%), invirtiendo la jerarquia temporal previa donde el Mes 3 lideraba.
+6. El **Mes 6 post-AVC** (fase cronica) emerge como el momento optimo para la clasificacion fractal per-electrodo (85.12% en 3-clases, 95.54% en 2-clases), seguido del Mes 3 (84.27% y 91.60%), invirtiendo la jerarquia temporal previa donde el Mes 3 lideraba.
 
 7. **SMOTE es efectivo** para abordar el desbalance de clases en 3-clases, permitiendo que clasificadores lineales como LogisticRegression superen a ensembles como RandomForest.
 
@@ -590,7 +632,7 @@ Los resultados demuestran que **la combinacion de caracteristicas fractales per-
 
 9. El subconjunto **Parietal-5** (5 canales, 76.36%) demuestra que las areas parietales contienen informacion particularmente discriminativa, ofreciendo un compromiso viable entre precision y complejidad para sistemas BCI.
 
-10. El pipeline propuesto (caracteristicas fractales per-electrodo + SMOTE + LogisticRegression) es **computacionalmente eficiente** y clinicamente viable, con un accuracy del 83.31% en 3-clases que se aproxima al estado del arte reportado por Martinez-Peon et al. (96.42% en 4-clases con 14 electrodos dirigidos a areas motoras), a pesar de usar un montaje 10-20 no dirigido y solo 5 pacientes.
+10. El pipeline propuesto (caracteristicas fractales per-electrodo + SMOTE + SVM tuneado) es **computacionalmente eficiente** y clinicamente viable, con un accuracy del 85.12% en 3-clases que se aproxima al estado del arte reportado por Martinez-Peon et al. (96.42% en 4-clases con 14 electrodos dirigidos a areas motoras), a pesar de usar un montaje 10-20 no dirigido y solo 5 pacientes.
 
 ---
 
@@ -615,6 +657,8 @@ Los resultados demuestran que **la combinacion de caracteristicas fractales per-
 
 ### A.2 Hiperparametros de clasificadores
 
+**Defaults (pre-tuning):**
+
 | Modelo | Hiperparametros |
 |--------|-----------------|
 | SVM | C=1.0, kernel='rbf', probability=True, random_state=42 |
@@ -622,6 +666,18 @@ Los resultados demuestran que **la combinacion de caracteristicas fractales per-
 | LogisticRegression | C=1.0, max_iter=2000, random_state=42, n_jobs=-1 |
 | kNN | n_neighbors=10, metric='chebyshev', n_jobs=-1 |
 | NaiveBayes | GaussianNB, var_smoothing=1e-9 |
+| MLP | hidden_layer_sizes=(7,), alpha=0.0001, learning_rate_init=0.001 |
+| DecisionTree | max_depth=None, max_features=None, criterion='gini' |
+
+**Tuned (SVM, mejor configuracion 3-clases):**
+
+| Modelo | Hiperparametros | Accuracy (Mes 6) |
+|--------|-----------------|------------------|
+| SVM (tuned) | C=10, kernel='rbf', gamma='scale', probability=True | **85.12%** |
+| SVM (tuned, Mes 3) | C=100, kernel='rbf', gamma=0.01, probability=True | 84.27% |
+| LogReg (tuned) | C=5, solver='saga', max_iter=5000 | 83.99% |
+| MLP (tuned) | hidden_layer_sizes=(28,), alpha=0.0001, learning_rate_init=0.01 | 77.79% |
+| kNN (tuned) | n_neighbors=3, metric='euclidean', weights='distance' | 76.55% |
 
 ### A.3 Preprocesamiento
 
