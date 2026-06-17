@@ -293,7 +293,7 @@ if __name__ == "__main__":
     print(f"\nDone in {elapsed/60:.1f} min. {len(results)} results saved.")
 
     df_r = pd.DataFrame(results)
-    out_path = os.path.join(cfg.CLASSIFICATION_DIR, "results_W700_fractal_extended.csv")
+    out_path = os.path.join(cfg.CLASSIFICATION_DIR, "results_W700_fractal_extended_v2.csv")
     df_r.to_csv(out_path, index=False)
     print(f"Saved: {out_path}")
 
@@ -387,7 +387,7 @@ if __name__ == "__main__":
         print(f"{month:6s}: {best['Model']:<18s} + {best['Feature_Label']:<50s} "
               f"= Pool:{best['Accuracy']*100:.2f}%  PatMean:{pat_mean*100:.2f}%+-{pat_std*100:.1f}  "
               f"F1={best['F1_Macro']:.4f}  "
-              f"\u03ba={best['Kappa']:.4f}  N_feat={best['N_Features']}")
+              f"k={best['Kappa']:.4f}  N_feat={best['N_Features']}")
 
     print("\n" + "=" * 120)
     print("CHANNEL SUBSETS - MEJOR POR CONFIG (Group C, 3-clases, SMOTE)")
