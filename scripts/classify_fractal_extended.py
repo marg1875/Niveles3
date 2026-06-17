@@ -101,8 +101,9 @@ def _extract_xy_per_channel(df_raw, exp, month_val):
 
 
 def _classify_patient_cv(X_c, y_c, pat, model, use_smote):
-    """Intra-subject CV with optional SMOTE. Returns (y_true, y_pred) lists."""
+    """Intra-subject CV with optional SMOTE. Returns (y_true, y_pred, patient_accuracies) lists."""
     all_yt, all_yp = [], []
+    patient_accs = []
     sm = SMOTE(random_state=42) if use_smote else None
     for patient in sorted(set(pat)):
         p_mask = pat == patient
@@ -114,6 +115,7 @@ def _classify_patient_cv(X_c, y_c, pat, model, use_smote):
             skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
         except Exception:
             continue
+        patient_yt, patient_yp = [], []
         for tr, te in skf.split(X_p, y_p):
             X_tr, X_te = X_p[tr], X_p[te]
             y_tr, y_te = y_p[tr], y_p[te]
@@ -127,9 +129,13 @@ def _classify_patient_cv(X_c, y_c, pat, model, use_smote):
             X_te_s = scaler.transform(X_te)
             model.fit(X_tr_s, y_tr)
             y_pred = model.predict(X_te_s)
+            patient_yt.extend(y_te)
+            patient_yp.extend(y_pred)
             all_yt.extend(y_te)
             all_yp.extend(y_pred)
-    return all_yt, all_yp
+        if patient_yt:
+            patient_accs.append(accuracy_score(patient_yt, patient_yp))
+    return all_yt, all_yp, patient_accs
 
 
 # ===== EXPERIMENT DEFINITIONS =====
@@ -253,19 +259,24 @@ if __name__ == "__main__":
 
                 for mname in MODEL_ORDER:
                     model = MODELS[mname]
-                    all_yt, all_yp = _classify_patient_cv(X_c, y_c, pat, model, use_smote)
+                    all_yt, all_yp, patient_accs = _classify_patient_cv(X_c, y_c, pat, model, use_smote)
 
                     if len(all_yt) > 0:
                         acc = accuracy_score(all_yt, all_yp)
                         f1 = f1_score(all_yt, all_yp, average="macro", zero_division=0)
                         kappa = cohen_kappa_score(all_yt, all_yp)
                         mae = mean_absolute_error(all_yt, all_yp)
+                        mean_pat_acc = np.mean(patient_accs) if patient_accs else np.nan
+                        std_pat_acc = np.std(patient_accs) if patient_accs else np.nan
+                        n_patients = len(patient_accs)
                         results.append({
                             "Model": mname, "Feature_Subset": exp["id"],
                             "Feature_Label": exp["label"], "Channel_Config": exp.get("channels", ["All-16"])[0],
                             "Class_Type": ct, "Month": month_label,
                             "Accuracy": acc, "F1_Macro": f1, "Kappa": kappa, "MAE": mae,
                             "N": len(all_yt), "N_Features": len(feat_cols), "Group": exp["group"],
+                            "Patient_Accuracy_Mean": mean_pat_acc, "Patient_Accuracy_Std": std_pat_acc,
+                            "N_Patients": n_patients,
                         })
 
                 # Progress
@@ -355,9 +366,12 @@ if __name__ == "__main__":
         if len(ms) == 0:
             continue
         best = ms.loc[ms["Accuracy"].idxmax()]
+        pat_mean = best.get("Patient_Accuracy_Mean", np.nan)
+        pat_std = best.get("Patient_Accuracy_Std", np.nan)
         print(f"{month:6s}: {best['Model']:<18s} + {best['Feature_Label']:<50s} "
-              f"= {best['Accuracy']*100:.2f}%  F1={best['F1_Macro']:.4f}  "
-              f"k={best['Kappa']:.4f}  MAE={best['MAE']:.4f}  N_feat={best['N_Features']}")
+              f"= Pool:{best['Accuracy']*100:.2f}%  PatMean:{pat_mean*100:.2f}%+-{pat_std*100:.1f}  "
+              f"F1={best['F1_Macro']:.4f}  k={best['Kappa']:.4f}  "
+              f"MAE={best['MAE']:.4f}  N_feat={best['N_Features']}")
 
     print("\n" + "=" * 120)
     print("MEJORES 2-CLASES (sin SMOTE)")
@@ -368,8 +382,11 @@ if __name__ == "__main__":
         if len(ms) == 0:
             continue
         best = ms.loc[ms["Accuracy"].idxmax()]
+        pat_mean = best.get("Patient_Accuracy_Mean", np.nan)
+        pat_std = best.get("Patient_Accuracy_Std", np.nan)
         print(f"{month:6s}: {best['Model']:<18s} + {best['Feature_Label']:<50s} "
-              f"= {best['Accuracy']*100:.2f}%  F1={best['F1_Macro']:.4f}  "
+              f"= Pool:{best['Accuracy']*100:.2f}%  PatMean:{pat_mean*100:.2f}%+-{pat_std*100:.1f}  "
+              f"F1={best['F1_Macro']:.4f}  "
               f"\u03ba={best['Kappa']:.4f}  N_feat={best['N_Features']}")
 
     print("\n" + "=" * 120)
@@ -386,5 +403,25 @@ if __name__ == "__main__":
         top = ms.nlargest(5, "Accuracy")
         for _, row in top.iterrows():
             print(f"  {row['Model']:<18s} {row['Feature_Label']:<55s} {row['Accuracy']*100:>6.2f}%")
+
+    print("\n" + "=" * 120)
+    print("COMPARACION POOL vs MEAN-PER-PATIENT (TOP 3-class por Patient_Accuracy_Mean)")
+    print("=" * 120)
+    for month in ["Mixto", "Mes 1", "Mes 3", "Mes 6"]:
+        ms = sub_3c[sub_3c["Month"] == month]
+        if len(ms) == 0:
+            continue
+        best_pat = ms.loc[ms["Patient_Accuracy_Mean"].idxmax()]
+        print(f"\n{month} (mejor por Patient_Accuracy_Mean):")
+        print(f"  {best_pat['Model']} + {best_pat['Feature_Label']} "
+              f"| Pool:{best_pat['Accuracy']*100:.2f}%  "
+              f"PatMean:{best_pat['Patient_Accuracy_Mean']*100:.2f}%+-{best_pat['Patient_Accuracy_Std']*100:.1f} "
+              f"N_pat={best_pat['N_Patients']:.0f}")
+        # Also show best by Pool for comparison
+        best_pool = ms.loc[ms["Accuracy"].idxmax()]
+        if best_pool["Accuracy"] != best_pat["Accuracy"]:
+            print(f"  [{best_pool['Model']} + {best_pool['Feature_Label']} "
+                  f"| Pool:{best_pool['Accuracy']*100:.2f}%  "
+                  f"PatMean:{best_pool['Patient_Accuracy_Mean']*100:.2f}%+-{best_pool['Patient_Accuracy_Std']*100:.1f}]")
 
     print("\nSaved:", out_path)

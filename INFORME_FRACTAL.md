@@ -32,7 +32,7 @@ El EEG durante MI exhibe propiedades fractales que reflejan la complejidad tempo
 - **Hurst Rescaled Range con Particiones (HRS):** R/S aplicado a sub-series y promediado; p=64 particiones.
 - **Hurst via Semivariograma (HV):** H estimado a partir del semivariograma, equivalente metodologico al Semivariograma clasico.
 
-Investigaciones previas han aplicado variantes del exponente de Hurst a la clasificacion de MI, destacando el trabajo de Martinez-Peon et al. (2024, _J. Neural Eng._ 21, 046024) quienes reportaron un 96.42% de accuracy con kNN+HRS empleando 10 sujetos, 20 electrodos y validacion intra-sujeto 10-fold en WEKA.
+Investigaciones previas han aplicado variantes del exponente de Hurst a la clasificacion de MI, destacando el trabajo de Martinez-Peon et al. (2024, _J. Neural Eng._ 21, 046024) quienes reportaron un 96.42% de accuracy con kNN+HRS empleando 10 sujetos, 20 electrodos y validacion intra-sujeto 5-fold en WEKA (per-sujeto promediado, no pool).
 
 ### 1.3 Contribuciones de este estudio
 
@@ -469,7 +469,7 @@ El patron temporal se mantiene: Mes 3 y Mes 6 ofrecen la senal mas discriminativ
 | Algoritmos | HO, HRS, HV | RS, Higuchi, DFA, Variogram, HO, HRS, HV | RS, Higuchi, DFA, Variogram, HO, HRS, HV |
 | Agregacion | Per-electrodo | Promedio espacial | Per-electrodo |
 | Ventana | 1.5s con marcadores | 2.8s contiguos | 2.8s contiguos |
-| Validacion | 10-fold CV (WEKA) | 5-fold CV (scikit-learn) | 5-fold CV (scikit-learn) |
+| Validacion | 5-fold CV (WEKA) | 5-fold CV (scikit-learn) | 5-fold CV (scikit-learn) |
 | Mejor accuracy 3-clases | 96.42% (kNN+HRS+HO+HV) | 67.73% (RF, 7 features) | **83.31% (LogReg, 64 features)** |
 | Mejor accuracy 2-clases | — | 75.20% | **95.54%** |
 

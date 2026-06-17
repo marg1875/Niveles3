@@ -17,7 +17,7 @@ Se evaluo un pipeline de clasificacion de niveles de fuerza en Motor Imagery (MI
 
 El Accidente Cerebrovascular (AVC) es una de las principales causas de discapacidad motora a nivel mundial. Las Interfaces Cerebro-Computadora (BCI) basadas en Motor Imagery (MI) —la imaginacion de un movimiento sin ejecutarlo— ofrecen una via prometedora para la neurorehabilitacion al activar circuitos sensoriomotores incluso en ausencia de movimiento real. Un desafio clinico fundamental es la capacidad de **discriminar entre diferentes niveles de fuerza imaginada**, tipicamente expresados como porcentaje de la Contraccion Voluntaria Maxima (Maximum Voluntary Contraction, MVR). Una clasificacion precisa del nivel de esfuerzo mental permitiria sistemas BCI mas graduados y adaptativos durante la rehabilitacion.
 
-Investigaciones previas han empleado diversas tecnicas de procesamiento de senales EEG para este proposito. En particular, Martinez-Peon et al. (2024, _J. Neural Eng._ 21, 046024) reportaron un 96.42% de accuracy empleando el exponente de Hurst con particiones (HRS) y clasificadores estandar (kNN, SVM, RandomForest, entre otros) en 10 sujetos con 20 electrodos bajo validacion intra-sujeto con 10-fold cross-validation en WEKA.
+Investigaciones previas han empleado diversas tecnicas de procesamiento de senales EEG para este proposito. En particular, Martinez-Peon et al. (2024, _J. Neural Eng._ 21, 046024) reportaron un 96.42% de accuracy empleando el exponente de Hurst con particiones (HRS) y clasificadores estandar (kNN, SVM, RandomForest, entre otros) en 10 sujetos con 20 electrodos bajo validacion intra-sujeto con 5-fold cross-validation en WEKA (per-sujeto promediado, no pool).
 
 El presente estudio adapta y extiende dicho enfoque con las siguientes contribuciones:
 
@@ -370,7 +370,7 @@ En el Mes 1, LogisticRegression demuestra ser el mejor clasificador (93.27%), be
 
 ### 8.1 Comparacion con la literatura
 
-El estudio de referencia (Martinez-Peon et al., 2024) reporto un 96.42% de accuracy empleando kNN con HRS_p64 en 10 sujetos, 20 electrodos, y validacion intra-sujeto con 10-fold cross-validation en WEKA. Nuestro mejor resultado (93.27%) se situa ~3 puntos por debajo. Las diferencias metodologicas que explicarian esta brecha incluyen:
+El estudio de referencia (Martinez-Peon et al., 2024) reporto un 96.42% de accuracy empleando kNN con HRS_p64 en 10 sujetos, 20 electrodos, y validacion intra-sujeto con 5-fold cross-validation en WEKA. Nuestro mejor resultado (93.27%) se situa ~3 puntos por debajo. Las diferencias metodologicas que explicarian esta brecha incluyen:
 
 | Factor | Martinez-Peon 2024 | Este estudio |
 |--------|-------------------|-------------|
@@ -379,7 +379,7 @@ El estudio de referencia (Martinez-Peon et al., 2024) reporto un 96.42% de accur
 | Ubicacion electrodos | PM, pre-SMA, DLPFC, IPL (seleccion dirigida a areas motoras) | Montaje 10-20 completo (incluye areas no motoras) |
 | Niveles MVR | 4 | 2 (10%, 40%) |
 | Duracion de epoca | 1.5 s con marcadores | 2.8 s contiguos sin marcadores |
-| Validacion | 10-fold CV | 5-fold CV |
+| Validacion | 5-fold CV | 5-fold CV |
 | Software | WEKA | Python/scikit-learn |
 | Caracteristicas | Solo Hurst (HO, HRS, HV) | Hurst + fractales + espectrales |
 
