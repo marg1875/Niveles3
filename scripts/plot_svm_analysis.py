@@ -103,7 +103,7 @@ def plot_confusion_matrix_tuned(cm, accuracy):
     ax.set_yticklabels(CLASS_LABELS, fontsize=11)
     ax.set_xlabel("Predicted", fontsize=13, fontweight="bold")
     ax.set_ylabel("Actual", fontsize=13, fontweight="bold")
-    ax.set_title(f"Confusion Matrix — SVM tuned (C=12, rbf, gamma=0.02)\n3-class, Mes 6, Pool Accuracy = {accuracy:.2f}%", fontsize=13, fontweight="bold")
+    ax.set_title(f"Confusion Matrix — SVM\n3-class, Month 6, Accuracy = {accuracy:.2f}%", fontsize=13, fontweight="bold")
     fig.tight_layout()
     path = os.path.join(OUTPUT_DIR, "confusion_matrix_best.png")
     fig.savefig(path, dpi=200, bbox_inches="tight", facecolor="white")
@@ -131,7 +131,7 @@ def plot_accuracy_per_patient_tuned(patient_accs, month_label):
     ax.set_xticks(range(len(patients)))
     ax.set_xticklabels(patients, fontsize=12)
     ax.set_ylabel("Accuracy (%)", fontsize=13)
-    ax.set_title(f"Per-Patient Accuracy — SVM tuned\n{month_label}, 3-class, Mean = {mean_acc:.1f}% ± {std_acc:.1f}%", fontsize=14, fontweight="bold")
+    ax.set_title(f"Per-Patient Accuracy — SVM\n{month_label}, 3-class, Mean = {mean_acc:.1f}% ± {std_acc:.1f}%", fontsize=14, fontweight="bold")
     ax.legend(loc="lower right", fontsize=11)
     ax.set_ylim(60, 100)
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.0f%%"))
@@ -148,8 +148,8 @@ def main():
     df_raw = pd.read_csv(csv_path)
     feat_cols = build_features(df_raw)
 
-    MONTHS = [("Mes 3", "Month3"), ("Mes 6", "Month6"),
-              ("Mes 1", "Month1"), ("Mixto", None)]
+    MONTHS = [("Month 3", "Month3"), ("Month 6", "Month6"),
+              ("Month 1", "Month1"), ("All months", None)]
 
     for month_label, month_val in MONTHS:
         df_f = df_raw.copy()
@@ -161,9 +161,9 @@ def main():
         pat = df_f["Patient"].values
 
         # Use best params per month
-        if month_label == "Mes 6":
+        if month_label == "Month 6":
             C, gamma = 12, 0.02
-        elif month_label == "Mes 3":
+        elif month_label == "Month 3":
             C, gamma = 100, 0.01
         else:
             C, gamma = 10, "scale"
@@ -179,10 +179,10 @@ def main():
         mean_pat = np.mean(list(patient_accs.values())) * 100
         std_pat = np.std(list(patient_accs.values())) * 100
 
-        print(f"{month_label}: Pool={pool_acc:.2f}%  PatMean={mean_pat:.2f}%+-{std_pat:.1f}  "
+        print(f"{month_label}: Accuracy={pool_acc:.2f}%  PatMean={mean_pat:.2f}%+-{std_pat:.1f}  "
               f"Per-patient: {{{', '.join(f'{PATIENT_MAP.get(k,k)}: {v*100:.1f}%' for k, v in patient_accs.items())}}}")
 
-        if month_label == "Mes 6":
+        if month_label == "Month 6":
             plot_confusion_matrix_tuned(cm, pool_acc)
             plot_accuracy_per_patient_tuned(patient_accs, month_label)
 

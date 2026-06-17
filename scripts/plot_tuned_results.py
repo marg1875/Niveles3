@@ -24,29 +24,29 @@ plt.rcParams.update({
     "savefig.bbox": "tight", "savefig.facecolor": "white",
 })
 
-MONTH_LABELS = ["Mes 1", "Mes 3", "Mes 6"]
+MONTH_LABELS = ["Month 1", "Month 3", "Month 6"]
 MONTH_POSITIONS = [1, 3, 6]
 
 # SVM results per month (3-class, Basic per-channel 64 feat, SMOTE)
 # Mes 1: default SVM from classify_fractal_extended (no tuning done)
 # Mes 3,6: tuned from hyperparameter_tuning
 SVM_ACC = {
-    "Mes 1": 69.90,  # SVM default, 3class, Basic per-channel + SMOTE
-    "Mes 3": 84.27,  # SVM tuned C=100, rbf, gamma=0.01
-    "Mes 6": 85.46,  # SVM tuned C=12, rbf, gamma=0.02
+    "Month 1": 69.90,
+    "Month 3": 84.27,
+    "Month 6": 85.46,
 }
 
 SVM_STD = {
-    "Mes 1": 9.1,   # estimated from std of per-patient
-    "Mes 3": 4.9,
-    "Mes 6": 5.1,
+    "Month 1": 9.1,
+    "Month 3": 4.9,
+    "Month 6": 5.1,
 }
 
 # LogReg (previous best, for comparison)
 LOGREG_ACC = {
-    "Mes 1": 74.80,
-    "Mes 3": 83.27,
-    "Mes 6": 83.99,
+    "Month 1": 74.80,
+    "Month 3": 83.27,
+    "Month 6": 83.99,
 }
 LOGREG_STD = {
     "Mes 1": 11.4,
@@ -56,9 +56,9 @@ LOGREG_STD = {
 
 # SVM default (before tuning, for comparison)
 SVM_DEFAULT_ACC = {
-    "Mes 1": 69.90,
-    "Mes 3": 79.36,
-    "Mes 6": 80.38,
+    "Month 1": 69.90,
+    "Month 3": 79.36,
+    "Month 6": 80.38,
 }
 
 # Per-patient tuned SVM (if available) or use defaults
@@ -75,10 +75,10 @@ def plot_svm_evolution():
 
     ax.errorbar(months_idx, svm_acc, yerr=svm_std,
                 marker="s", markersize=10, linewidth=2.5, capsize=6,
-                color="#2166AC", label="SVM tuned (C=12, rbf, gamma=0.02)", zorder=3)
+                color="#2166AC", label="SVM", zorder=3)
     ax.plot(months_idx, logreg_acc,
             marker="D", markersize=8, linewidth=2, linestyle="--",
-            color="#B2182B", label="LogisticRegression tuned", zorder=2)
+            color="#B2182B", label="Logistic Regression", zorder=2)
     ax.scatter(months_idx, svm_acc, s=150, c="#2166AC", edgecolors="white",
                linewidths=1.5, zorder=4)
 
@@ -91,7 +91,7 @@ def plot_svm_evolution():
     ax.set_ylabel("Accuracy (%)", fontsize=13)
     ax.set_ylim(60, 94)
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.0f%%"))
-    ax.set_title("SVM convergence across post-stroke stages\n(Fractal per-channel 64 feat + SMOTE, 3-class)", fontsize=14, fontweight="bold")
+    ax.set_title("SVM Classification Accuracy Over Post-Stroke Recovery\n(Fractal per-channel features + SMOTE, 3-class)", fontsize=14, fontweight="bold")
     ax.legend(loc="lower right", fontsize=10, framealpha=0.9)
     ax.grid(True, alpha=0.3, linestyle=":")
     ax.set_xlim(0.5, 6.5)
@@ -112,13 +112,13 @@ def plot_spatial_vs_perchannel_updated():
     """Spatial mean vs per-channel comparison with tuned values."""
     fig, axes = plt.subplots(1, 3, figsize=(14, 5), sharey=True)
 
-    for idx, month in enumerate(["Mes 1", "Mes 3", "Mes 6"]):
+    for idx, month in enumerate(["Month 1", "Month 3", "Month 6"]):
         ax = axes[idx]
-        categories = ["Spatial Mean\n(best, 7 feat)", "Per-channel\n(default, 64 feat)", "Per-channel\n(SVM tuned, 64 feat)"]
+        categories = ["Spatial Mean\n(best, 7 feat)", "Per-channel\n(default, 64 feat)", "Per-channel\n(SVM, 64 feat)"]
 
-        if month == "Mes 1":
-            values = [51.12, 69.90, 69.90]  # Mes 1 no tuning
-        elif month == "Mes 3":
+        if month == "Month 1":
+            values = [51.12, 69.90, 69.90]
+        elif month == "Month 3":
             values = [64.64, 79.36, 84.27]
         else:
             values = [57.61, 80.38, 85.46]
@@ -136,7 +136,7 @@ def plot_spatial_vs_perchannel_updated():
         ax.tick_params(axis="x", labelsize=9)
 
     axes[0].set_ylabel("Accuracy (%)", fontsize=13)
-    fig.suptitle("Progressive improvement: Spatial Mean vs Per-channel vs Tuned SVM\n(3-class, Basic per-channel 64 feat + SMOTE)", fontsize=14, fontweight="bold", y=1.02)
+    fig.suptitle("Spatial Mean vs Per-channel Features\n(Basic fractal features + SMOTE, 3-class)", fontsize=14, fontweight="bold", y=1.02)
     fig.tight_layout()
     path = os.path.join(OUTPUT_DIR, "spatial_vs_perchannel.png")
     fig.savefig(path, dpi=200, bbox_inches="tight", facecolor="white")
@@ -154,8 +154,8 @@ def plot_tuning_impact():
     defaults = [SVM_DEFAULT_ACC[m] for m in MONTH_LABELS]
     tuned = [SVM_ACC[m] for m in MONTH_LABELS]
 
-    bars1 = ax.bar(x - width / 2, defaults, width, label="SVM default", color="#D1E5F0", edgecolor="white")
-    bars2 = ax.bar(x + width / 2, tuned, width, label="SVM tuned", color="#2166AC", edgecolor="white")
+    bars1 = ax.bar(x - width / 2, defaults, width, label="SVM (default)", color="#D1E5F0", edgecolor="white")
+    bars2 = ax.bar(x + width / 2, tuned, width, label="SVM (optimized)", color="#2166AC", edgecolor="white")
 
     for bar, v in zip(bars1, defaults):
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
@@ -175,7 +175,7 @@ def plot_tuning_impact():
     ax.set_xticklabels(MONTH_LABELS, fontsize=12)
     ax.set_ylabel("Accuracy (%)", fontsize=13)
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.0f%%"))
-    ax.set_title("SVM: Default vs Tuned hyperparameters\n(3-class, Basic per-channel 64 feat + SMOTE)", fontsize=14, fontweight="bold")
+    ax.set_title("SVM: default vs. optimized hyperparameters\n(Basic per-channel features + SMOTE, 3-class)", fontsize=14, fontweight="bold")
     ax.legend(loc="lower right", fontsize=11)
     ax.grid(True, alpha=0.3, axis="y", linestyle=":")
     ax.set_ylim(60, 94)
