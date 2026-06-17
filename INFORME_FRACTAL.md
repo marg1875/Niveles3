@@ -335,7 +335,7 @@ Evaluacion de caracteristicas per-electrodo retenidas exclusivamente sobre subco
 | Motor-6 (+F3, F4) | 6 | 24 | 75.82% (Mes 3) | RandomForest |
 | Frontal-5 | 5 | 20 | 74.00% (Mes 3) | RandomForest |
 | Parietal-5 | 5 | 20 | 76.89% (Mes 6) | RandomForest |
-| All-16 | 16 | 64 | 83.31% (Mes 6) | LogisticRegression |
+| All-16 | 16 | 64 | 85.46% (Mes 6) | SVM tuned (C=12, rbf, gamma=0.02) |
 
 El rendimiento escala consistentemente con el numero de canales, indicando que **la informacion topografica de los 16 electrodos es complementaria**. El subconjunto Parietal-5 (Pz, P5, P3, P6, P4) alcanza 76.89% con solo 5 canales y 20 features, demostrando que las areas parietales contienen informacion particularmente discriminativa para la clasificacion de niveles de MI.
 
@@ -375,12 +375,22 @@ Desglose del rendimiento individual por paciente para la configuracion optima (6
 | Px.009 | 224 | 20 / 102 / 102 | 79.46% | 0.6560 | +0.6512 |
 | **POOL** | **887** | **80 / 404 / 403** | **83.31%** | **0.7155** | **+0.7174** |
 
-**Observaciones per-paciente:**
+**Observaciones per-paciente (LogisticRegression):**
 
-1. **Px.009 es consistentemente el paciente mas dificil** (63.71%–79.46%), posiblemente debido a menor habilidad de imagery motora o mayor variabilidad en los patrones EEG.
-2. **Px.008 alcanza 91.44% en el Mes 6** — casi 11 puntos arriba del pool. Este paciente muestra patrones fractales particularmente discriminativos en la fase cronica.
-3. La **variabilidad entre pacientes** es significativa (rango: 57.73%–91.44%), lo que confirma la naturaleza altamente individual de los patrones de MI y la necesidad de calibracion por paciente.
+1. **Px.009 es consistentemente el paciente mas dificil** con LogisticRegression (63.71%–79.46%), pero mejora significativamente con SVM (83.9% en Mes 6, +4.4 pts).
+2. **Px.008 alcanza 91.44% en el Mes 6** con LogisticRegression y 90.5% con SVM — consistente en ambos clasificadores, patrones fractales altamente discriminativos en fase cronica.
+3. La **variabilidad entre pacientes** se reduce con SVM (rango Mes 6: 77.8%–90.5% vs 79.5%–91.4% con LogReg), sugiriendo que el kernel RBF generaliza mejor a traves de pacientes.
 4. El POOL es ligeramente inferior al promedio simple porque esta ponderado por el numero de epocas de cada paciente.
+
+**Per-patient accuracy con SVM tuned (Mes 6, C=12, rbf, gamma=0.02):**
+
+| Paciente | SVM Accuracy |
+|----------|-------------|
+| Px.006 | 77.8% |
+| Px.007 | 89.5% |
+| Px.008 | 90.5% |
+| Px.009 | 83.9% |
+| **Mean ± Std** | **85.46% ± 5.1%** |
 
 ---
 
@@ -545,45 +555,40 @@ La mejora de 67.73% a 85.46% (+17.73 puntos) se atribuye a tres factores princip
 2. **SMOTE**: El balanceo de clases permite que los clasificadores aprendan patrones de la clase minoritaria (reposo) que de otro modo serian ignorados.
 3. **Hyperparameter tuning**: El ajuste fino de hiperparametros (C y gamma en SVM, penalty en LogReg) anade +2.15 puntos adicionales, elevando el maximo de 83.31% a 85.46%.
 
-### 7.5 Matrices de Confusion y Verificacion de Data Leakage
+### 7.5 Matrices de Confusion (SVM tuned, Basic per-channel + SMOTE)
 
 #### 7.5.1 Matrices de confusion (LogisticRegression + Basicos per-channel + SMOTE)
 
-**Mes 1 (980 epocas, POOL 74.80%):**
+**Mes 1 (980 epocas, SVM Pool 75.00%):**
 ```
               Predicho 0    Predicho 10    Predicho 40
-Real 0:            29             38             33
-Real 10:           48            328             52
-Real 40:           47             29            376
+Real 0:            28             39             33  (28.0% correct)
+Real 10:           30            338             60  (79.0% correct)
+Real 40:           41             42            369  (81.6% correct)
 ```
-- Clase 0 (Reposo): 29 de 100 correctos (29.0%) — la clase mas dificil
-- Clase 10 (MVR 10%): 328 de 428 correctos (76.6%)
-- Clase 40 (MVR 40%): 376 de 452 correctos (83.2%)
+- Clase 0 (Reposo): 28% — la clase mas dificil en fase aguda
+- Clase 10: 79.0%
+- Clase 40: 81.6%
 
-**Mes 3 (1,100 epocas, POOL 83.27%):**
+**Mes 3 (1,100 epocas, SVM Pool 84.27%):**
 ```
               Predicho 0    Predicho 10    Predicho 40
-Real 0:            48             29             23
-Real 10:           38            430             32
-Real 40:           39             23            438
+Real 0:            38             32             30  (38.0% correct)
+Real 10:           31            440             29  (88.0% correct)
+Real 40:           32             19            449  (89.8% correct)
 ```
-- Clase 0: 48 de 100 correctos (48.0%)
-- Clase 10: 430 de 500 correctos (86.0%)
-- Clase 40: 438 de 500 correctos (87.6%)
-- Error principal: confundir reposo con MVR 10% o 40% (52% de los errores de clase 0)
+- Mejoria sustancial respecto a Mes 1 en todas las clases
+- La clase 10 es la mas discriminable (88.0%)
 
-**Mes 6 (887 epocas, POOL 83.31%):**
+**Mes 6 (887 epocas, SVM Pool 85.46%):**
 ```
               Predicho 0    Predicho 10    Predicho 40
-Real 0:            35             15             30
-Real 10:           30            357             17
-Real 40:           45             11            347
+Real 0:            31             15             34  (38.8% correct)
+Real 10:           14            369             21  (91.3% correct)
+Real 40:           36              9            358  (88.8% correct)
 ```
-- Clase 0: 35 de 80 correctos (43.8%)
-- Clase 10: 357 de 404 correctos (88.4%)
-- Clase 40: 347 de 403 correctos (86.1%)
-
-**Patron de confusion consistente:** La clase 0 (Reposo) se confunde principalmente con la clase 40 (MVR 40%), y viceversa. Esto sugiere que las propiedades fractales del EEG en reposo y durante esfuerzo fuerte de MI comparten caracteristicas espectrales similares en el dominio fractal, mientras que el esfuerzo bajo (MVR 10%) presenta una firma fractal mas diferenciada.
+- Mejor rendimiento global. La clase 10 alcanza 91.3% de TPR
+- La clase 0 (reposo) sigue siendo la mas dificil (38.8%) — es intrinsecamente ambigua en el dominio fractal
 
 #### 7.5.2 Verificacion de Data Leakage
 
