@@ -41,7 +41,7 @@ C_PATIENT = {"P1": "#2166AC", "P2": "#4393C3", "P3": "#7570B3",
 
 PATIENT_MAP = {"Px.006": "P1", "Px.007": "P2", "Px.008": "P3", "Px.009": "P4", "Px.010": "P5"}
 C_CLASS = {0: "#4DAF4A", 10: "#377EB8", 40: "#E41A1C"}
-C_MONTHS = {"Mes 1": "#377EB8", "Mes 3": "#4DAF4A", "Mes 6": "#E41A1C"}
+C_MONTHS = {"Month 1": "#377EB8", "Month 3": "#4DAF4A", "Month 6": "#E41A1C"}
 
 ALL_CHANNELS = cfg.CHANNEL_NAMES
 PER_CH_METHODS_BASIC = ["RS", "Higuchi", "DFA", "Variogram"]
@@ -130,7 +130,7 @@ def plot_accuracy_per_patient(output_dir=None):
     df_raw = pd.read_csv(FEATURES_CSV)
     feat_cols = _build_pc_cols(df_raw, PER_CH_METHODS_BASIC, ALL_CHANNELS)
 
-    months = [("Month 1 (acute)", "Month1"), ("Month 3 (sub-acute)", "Month3"), ("Month 6 (chronic)", "Month6")]
+    months = [("Month 1", "Month1"), ("Month 3", "Month3"), ("Month 6", "Month6")]
     fig, axes = plt.subplots(1, 3, figsize=(16, 5.5))
     patients_all = sorted(df_raw["Patient"].unique())
 
@@ -168,7 +168,7 @@ def plot_confusion_matrix_best(output_dir=None):
     df_raw = pd.read_csv(FEATURES_CSV)
     feat_cols = _build_pc_cols(df_raw, PER_CH_METHODS_BASIC, ALL_CHANNELS)
 
-    months = [("Month 1 (acute)", "Month1"), ("Month 3 (sub-acute)", "Month3"), ("Month 6 (chronic)", "Month6")]
+    months = [("Month 1", "Month1"), ("Month 3", "Month3"), ("Month 6", "Month6")]
     fig, axes = plt.subplots(1, 3, figsize=(16, 5.5))
 
     for ax_idx, (mlabel, mval) in enumerate(months):
@@ -209,11 +209,12 @@ def plot_per_channel_comparison(output_dir=None):
                     "NaiveBayes": "#A6D854", "LogisticRegression": "#FFD92F",
                     "MLP": "#FC8D62", "DecisionTree": "#E41A1C"}
 
-    months = ["Mes 1", "Mes 3", "Mes 6"]
+    months_disp = ["Month 1", "Month 3", "Month 6"]
+    months_key = ["Mes 1", "Mes 3", "Mes 6"]
     fig, axes = plt.subplots(1, 3, figsize=(20, 7))
-    for ax_idx, month in enumerate(months):
+    for ax_idx, (mkey, mdisp) in enumerate(zip(months_key, months_disp)):
         ax = axes[ax_idx]
-        ms = sub3[sub3["Month"] == month]
+        ms = sub3[sub3["Month"] == mkey]
         x = np.arange(len(pc_ids))
         width = 0.11
         for i, mname in enumerate(model_order):
@@ -226,7 +227,7 @@ def plot_per_channel_comparison(output_dir=None):
         ax.set_xticks(x)
         ax.set_xticklabels(pc_labels, fontsize=7.5)
         ax.set_ylabel("Accuracy (%)")
-        ax.set_title(month, fontweight="bold")
+        ax.set_title(mdisp, fontweight="bold")
         ax.set_ylim(30, 95)
         ax.grid(axis="y", alpha=0.2)
     handles, labels = axes[0].get_legend_handles_labels()
@@ -261,7 +262,7 @@ def plot_channel_scaling(output_dir=None):
     ]
     ch_labels = [c[0] for c in ch_configs]
 
-    months = [("Month 1 (acute)", "Month1"), ("Month 3 (sub-acute)", "Month3"), ("Month 6 (chronic)", "Month6")]
+    months = [("Month 1", "Month1"), ("Month 3", "Month3"), ("Month 6", "Month6")]
     sm = SMOTE(random_state=42)
 
     colors = {
@@ -361,7 +362,7 @@ def plot_spatial_vs_perchannel(output_dir=None):
     output_dir = _ensure_dir() if output_dir is None else output_dir
     df = _load_results()
     sub3 = df[df["Class_Type"] == "3class"]
-    months = ["Mixto", "Mes 1", "Mes 3", "Mes 6"]
+    months = ["All months", "Month 1", "Month 3", "Month 6"]
     sm_accs, pc_accs = [], []
     sm_models, pc_models = [], []
     for month in months:
@@ -389,7 +390,7 @@ def plot_spatial_vs_perchannel(output_dir=None):
             ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
                     f"{val:.1f}%\n({model[:6]})", ha="center", fontsize=8, fontweight="bold")
     ax.set_xticks(x)
-    ax.set_xticklabels(["All\nmonths", "Month 1\n(acute)", "Month 3\n(sub-acute)", "Month 6\n(chronic)"], fontsize=10)
+    ax.set_xticklabels(["All\nmonths", "Month 1", "Month 3", "Month 6"], fontsize=10)
     ax.set_ylabel("Accuracy (%)")
     ax.set_title("Impact of Per-Channel Features (3-class, SMOTE)", fontweight="bold")
     ax.legend(fontsize=10, loc="upper left")
@@ -406,16 +407,17 @@ def plot_kappa_comparison(output_dir=None):
     output_dir = _ensure_dir() if output_dir is None else output_dir
     df = _load_results()
     sub3 = df[(df["Class_Type"] == "3class") & (df["Feature_Subset"] == "B5_Basic_pc")]
-    months = ["Mes 1", "Mes 3", "Mes 6"]
+    months_disp = ["Month 1", "Month 3", "Month 6"]
+    months_key = ["Mes 1", "Mes 3", "Mes 6"]
     model_order = ["SVM", "kNN", "RandomForest", "NaiveBayes", "LogisticRegression", "MLP", "DecisionTree"]
     model_colors = {"SVM": "#2166AC", "kNN": "#4393C3", "RandomForest": "#66C2A5",
                     "NaiveBayes": "#A6D854", "LogisticRegression": "#FFD92F",
                     "MLP": "#FC8D62", "DecisionTree": "#E41A1C"}
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-    for ax_idx, month in enumerate(months):
+    for ax_idx, (mkey, mdisp) in enumerate(zip(months_key, months_disp)):
         ax = axes[ax_idx]
-        ms = sub3[sub3["Month"] == month]
+        ms = sub3[sub3["Month"] == mkey]
         data = []
         for mname in model_order:
             row = ms[ms["Model"] == mname]
@@ -431,7 +433,7 @@ def plot_kappa_comparison(output_dir=None):
         ax.set_yticks(y)
         ax.set_yticklabels(models, fontsize=9)
         ax.set_xlabel("Cohen's Kappa")
-        ax.set_title(month, fontweight="bold")
+        ax.set_title(mdisp, fontweight="bold")
         ax.axvline(x=0, color="black", linewidth=0.5)
         for bar, k, acc in zip(ax.patches, kappas, accs):
             ax.text(bar.get_width() + 0.02, bar.get_y() + bar.get_height() / 2,
@@ -483,7 +485,7 @@ def plot_feature_distribution(output_dir=None):
 def plot_evolution_months(output_dir=None):
     output_dir = _ensure_dir() if output_dir is None else output_dir
     df = _load_results()
-    month_labels = ["Month 1\n(acute)", "Month 3\n(sub-acute)", "Month 6\n(chronic)"]
+    month_labels = ["Month 1", "Month 3", "Month 6"]
     month_keys = ["Mes 1", "Mes 3", "Mes 6"]
     x = np.arange(len(month_keys))
 
