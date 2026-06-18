@@ -10,7 +10,7 @@
 
 ## Resumen
 
-Se evaluo la capacidad de siete algoritmos fractales —Rescaled Range, Higuchi, Detrended Fluctuation Analysis (DFA), Semivariograma, Hurst Original, Hurst Rescaled Range con Particiones y Hurst via Semivariograma— para clasificar niveles de fuerza en Motor Imagery (MI) post-Accidente Cerebrovascular (AVC). Sobre 5 pacientes (P1-P5) con registros EEG de 16 canales a 250 Hz en tres momentos temporales (Mes 1, Mes 3, Mes 6 post-AVC), se optimizo el tamano de ventana mediante un barrido de 16 tamanos (2.0–8.0s) determinando W=700 muestras (2.8s) como la configuracion optima. Cada algoritmo fractal se evaluo como caracteristica unica (promedio espacial) y en configuracion per-electrodo (retener informacion espacial), siguiendo la metodologia de Martinez-Peon et al. (2024, _J. Neural Eng._ 21, 046024). Para abordar el desbalance de clases en la clasificacion 3-clases (280 reposo vs 1332/1355), se incorporo SMOTE (Synthetic Minority Over-sampling Technique) aplicado exclusivamente al conjunto de entrenamiento dentro de cada fold. Empleando validacion intra-sujeto StratifiedKFold (k=5) con pool de predicciones y caracteristicas per-electrodo de 4 metodos basicos (RS, Higuchi, DFA, Variogram × 16 canales = 64 features), se alcanzo **85.46% de accuracy en 3-clases** (Reposo/10%/40%) en el Mes 6 con SVM tuneado (C=12, rbf, gamma=0.02, κ=0.7573). El rendimiento del clasificador SVM muestra una **convergencia temporal progresiva**: Mes 1 (70.51%) → Mes 3 (84.27%) → Mes 6 (85.46%), correlacionandose con la recuperacion neurologica post-AVC. En 2-clases (10% vs 40%) con LogisticRegression, se alcanzo **95.54% en el Mes 6** (κ=0.9108). Los resultados demuestran que la combinacion de caracteristicas fractales per-electrodo con SMOTE produce mejoras sustanciales sobre el promedio espacial (+17.8 puntos en 3-clases), y que un clasificador lineal basico (SVM con kernel RBF) es suficiente para capturar la progresion temporal de la senal fractal, sin necesidad de arquitecturas complejas.
+Se evaluo la capacidad de siete algoritmos fractales —Rescaled Range, Higuchi, Detrended Fluctuation Analysis (DFA), Semivariograma, Hurst Original, Hurst Rescaled Range con Particiones y Hurst via Semivariograma— para clasificar niveles de fuerza en Motor Imagery (MI) post-Accidente Cerebrovascular (AVC). Sobre 5 pacientes (P1-P5) con registros EEG de 16 canales a 250 Hz en tres momentos temporales (Mes 1, Mes 3, Mes 6 post-AVC), se optimizo el tamano de ventana mediante un barrido de 16 tamanos (2.0–8.0s) determinando W=700 muestras (2.8s) como la configuracion optima. Cada algoritmo fractal se evaluo como caracteristica unica (promedio espacial) y en configuracion per-electrodo (retener informacion espacial), siguiendo la metodologia de Martinez-Peon et al. (2024, _J. Neural Eng._ 21, 046024). Para abordar el desbalance de clases en la clasificacion 3-clases (280 reposo vs 1332/1355), se incorporo SMOTE (Synthetic Minority Over-sampling Technique) aplicado exclusivamente al conjunto de entrenamiento dentro de cada fold. Empleando validacion intra-sujeto StratifiedKFold (k=5) con pool de predicciones y caracteristicas per-electrodo de 4 metodos basicos (RS, Higuchi, DFA, Semivariogram × 16 canales = 64 features), se alcanzo **85.46% de accuracy en 3-clases** (Reposo/10%/40%) en el Mes 6 con SVM tuneado (C=12, rbf, gamma=0.02, κ=0.7573). El rendimiento del clasificador SVM muestra una **convergencia temporal progresiva**: Mes 1 (70.51%) → Mes 3 (84.27%) → Mes 6 (85.46%), correlacionandose con la recuperacion neurologica post-AVC. En 2-clases (10% vs 40%) con LogisticRegression, se alcanzo **95.54% en el Mes 6** (κ=0.9108). Los resultados demuestran que la combinacion de caracteristicas fractales per-electrodo con SMOTE produce mejoras sustanciales sobre el promedio espacial (+17.8 puntos en 3-clases), y que un clasificador lineal basico (SVM con kernel RBF) es suficiente para capturar la progresion temporal de la senal fractal, sin necesidad de arquitecturas complejas.
 
 ---
 
@@ -523,7 +523,7 @@ El desbalance natural de clases (280 reposo vs 1332 MVR 10% vs 1355 MVR 40%) pen
 | 5 | HO per-channel | 58.64% | 0.341 | 16 |
 | 6 | HV per-channel | 57.09% | 0.335 | 16 |
 
-Los 4 metodos basicos per-electrodo (RS, Higuchi, DFA, Variogram × 16 canales = 64 features) superan consistentemente a las 3 variantes Martinez (HO, HRS_p64, HV × 16 canales = 48 features), a pesar de que estas ultimas replican exactamente la metodologia del paper de referencia. Esto sugiere que los metodos fractales complementarios (Higuchi basado en longitud de curva, DFA con eliminacion de tendencias, RS clasico, Semivariograma) capturan aspectos de la dinamica temporal que las variantes del exponente de Hurst por si solas no alcanzan.
+Los 4 metodos basicos per-electrodo (RS, Higuchi, DFA, Semivariogram × 16 canales = 64 features) superan consistentemente a las 3 variantes Martinez (HO, HRS_p64, HV × 16 canales = 48 features), a pesar de que estas ultimas replican exactamente la metodologia del paper de referencia. Esto sugiere que los metodos fractales complementarios (Higuchi basado en longitud de curva, DFA con eliminacion de tendencias, RS clasico, Semivariograma) capturan aspectos de la dinamica temporal que las variantes del exponente de Hurst por si solas no alcanzan.
 
 ### 7.3 Efecto del momento temporal
 
@@ -533,12 +533,29 @@ Los 4 metodos basicos per-electrodo (RS, Higuchi, DFA, Variogram × 16 canales =
 | SVM per-channel (tuned) | 70.51% | 84.27% | **85.46%** |
 | Mejor 2-clases per-ch | 88.30% | 91.60% | **95.54%** |
 
-La convergencia temporal del SVM es notable: Mes 1 (fase aguda, 70.51% ± 9.1) → Mes 3 (fase sub-aguda, 84.27% ± 4.9) → Mes 6 (fase cronica, 85.46% ± 5.1).
-| Mixto per-channel | — | — | 74.99% |
+La convergencia temporal del SVM es notable: Mes 1 (70.51% ± 9.1) → Mes 3 (84.27% ± 4.9) → Mes 6 (85.46% ± 5.1). La condicion Mixta (74.99%) permanece significativamente por debajo de cualquier mes individual (~8-9 puntos), confirmando que cada etapa temporal posee una firma fractal especifica que los clasificadores explotan.
 
-El patron temporal se mantiene: Mes 3 y Mes 6 ofrecen la senal mas discriminativa. Notablemente, el Mes 6 supera ligeramente al Mes 3 en 3-clases (83.31% vs 83.27%), invirtiendo la tendencia previa. La condicion Mixta (74.99%) permanece significativamente por debajo de cualquier mes individual (~8-9 puntos), confirmando que cada etapa temporal posee una firma fractal especifica que los clasificadores explotan.
+### 7.4 Ablacion de metodos individuales
 
-### 7.4 Comparacion con Martinez-Peon 2024
+Para cuantificar la contribucion de cada metodo fractal, se evaluo SVM con sus mejores hiperparametros sobre cada metodo en solitario (16 features per-electrodo) y sobre las combinaciones (Mes 6):
+
+| Metodo | Features | Accuracy | Kappa | MAE | TPR Reposo | TPR MVR 40% |
+|--------|----------|----------|-------|-----|-----------|-------------|
+| **Higuchi** | 16 | 81.17% | +0.691 | 5.54 | **56%** | 78% |
+| Semivariogram | 16 | 78.02% | +0.643 | 6.54 | 48% | 76% |
+| DFA | 16 | 77.00% | +0.627 | 7.02 | 48% | 74% |
+| RS | 16 | 67.98% | +0.502 | 8.95 | 61% | 66% |
+| **4 combinados** | **64** | **85.46%** | **+0.749** | **4.50** | 39% | **89%** |
+| 7 combinados | 112 | 82.41% | +0.693 | 5.41 | 22% | 88% |
+
+**Hallazgos de la ablacion:**
+
+1. **Higuchi es el metodo individual dominante.** Con solo 16 features alcanza 81.17% (Mes 6) y 83.45% (Mes 3), superando por ~3-4 puntos a DFA y Semivariogram, y por ~13 puntos a RS. En Mes 3, Higuchi solo (83.45%) queda a solo 0.8 puntos de la combinacion de 4 (84.27%).
+2. **Complementariedad, no redundancia.** Aunque Higuchi lidera, cada metodo aporta una dimension distinta: Higuchi captura mejor el reposo (TPR 56% vs 39% del combinado), mientras que la combinacion de 4 mejora sustancialmente la deteccion de MVR 40% (89% vs 78%). Los metodos no son redundantes: se complementan.
+3. **Agregar los 3 metodos de Hurst (HO, HRS, HV) es contraproducente.** La combinacion de los 7 metodos (112 features) rinde **3.05 puntos menos** que los 4 basicos (82.41% vs 85.46%). El TPR de la clase reposo se desploma de 39% a 22%. Las features de Hurst introducen ruido que degrada la separabilidad, particularmente de la clase minoritaria.
+4. **La dimensionalidad no lo es todo.** 64 features (4 metodos) superan a 112 features (7 metodos). La calidad de la representacion fractal importa mas que la cantidad de features.
+
+### 7.5 Comparacion con Martinez-Peon 2024
 
 | Factor | Martinez-Peon 2024 | Este estudio (Previo) | Este estudio (Actual) |
 |--------|-------------------|----------------------|----------------------|
@@ -557,7 +574,7 @@ La mejora de 67.73% a 85.46% (+17.73 puntos) se atribuye a tres factores princip
 2. **SMOTE**: El balanceo de clases permite que los clasificadores aprendan patrones de la clase minoritaria (reposo) que de otro modo serian ignorados.
 3. **Hyperparameter tuning**: El ajuste fino de hiperparametros (C y gamma en SVM, penalty en LogReg) anade +2.15 puntos adicionales, elevando el maximo de 83.31% a 85.46%.
 
-### 7.5 Matrices de Confusion (SVM tuned, Basic per-channel + SMOTE)
+### 7.6 Matrices de Confusion (SVM tuned, Basic per-channel + SMOTE)
 
 #### 7.5.1 Matrices de confusion (LogisticRegression + Basicos per-channel + SMOTE)
 
@@ -649,23 +666,25 @@ Los resultados demuestran que **la combinacion de caracteristicas fractales per-
 
 1. El tamano de ventana optimo para la extraccion de caracteristicas fractales en MI post-AVC es de **700 muestras (2.8 segundos)** con segmentacion contigua al 0% de traslape.
 
-2. La combinacion de **caracteristicas fractales per-electrodo (RS, Higuchi, DFA, Variogram × 16 canales = 64 features) con SMOTE y SVM tuneado** en 3-clases alcanza **85.46% de accuracy** (SVM, C=12, rbf, gamma=0.02, Mes 6, κ=0.7573), una mejora de **+17.73 puntos** sobre el enfoque previo de promedio espacial sin SMOTE (67.73%).
+2. La combinacion de **caracteristicas fractales per-electrodo (RS, Higuchi, DFA, Semivariogram × 16 canales = 64 features) con SMOTE y SVM tuneado** en 3-clases alcanza **85.46% de accuracy** (SVM, C=12, rbf, gamma=0.02, Mes 6, κ=0.7573), una mejora de **+17.73 puntos** sobre el enfoque previo de promedio espacial sin SMOTE (67.73%).
 
 3. En clasificacion 2-clases (10% vs 40%) sin SMOTE, las mismas caracteristicas per-electrodo alcanzan **95.54%** (LogisticRegression, Mes 6, κ=0.9108), superando el 75.20% previo por **+20.3 puntos**.
 
 4. Las caracteristicas per-electrodo (**64-112 features**) superan consistentemente al promedio espacial (**7 features**) por 15-28 puntos, demostrando que **la informacion topografica de los electrodos es critica** para la clasificacion fractal de MI.
 
-5. Los **4 metodos fractales basicos** (RS, Higuchi, DFA, Variogram) superan a las **3 variantes Martinez** (HO, HRS_p64, HV) en configuracion per-electrodo (85.46% vs 63.36-77.00%), a pesar de que estas ultimas replican la metodologia del paper de referencia. Higuchi y DFA capturan aspectos de la complejidad temporal no accesibles al exponente de Hurst.
+5. Los **4 metodos fractales basicos** (RS, Higuchi, DFA, Semivariogram) superan a las **3 variantes de Hurst** (HO, HRS, HV) en configuracion per-electrodo (85.46% vs 63-77% en Hurst individuales, y 85.46% vs 82.41% al combinar los 7). **Agregar los metodos de Hurst a los 4 basicos degrada el rendimiento** (-3.05 puntos), particularmente en la deteccion de la clase reposo (TPR cae de 39% a 22%).
 
-6. El **Mes 6 post-AVC** (fase cronica) emerge como el momento optimo para la clasificacion fractal per-electrodo (85.46% en 3-clases, 95.54% en 2-clases), seguido del Mes 3 (84.27% y 91.60%). **La convergencia temporal Mes 1→3→6 (70.51% → 84.27% → 85.46%)** con SVM constituye un biomarcador de recuperacion neurologica post-AVC.
+6. **Higuchi es el metodo fractal individual mas discriminativo** (81.17% Mes 6, 83.45% Mes 3 con solo 16 features), superando a DFA, Semivariogram y RS por ~3-13 puntos. En Mes 3, Higuchi solo (83.45%) queda a 0.8 puntos de la combinacion de 4 metodos (84.27%), confirmando su rol dominante. Sin embargo, la combinacion de metodos es necesaria para maximizar la deteccion de MVR 40% (TPR mejora de 78% a 89%).
 
-7. **SMOTE es efectivo** para abordar el desbalance de clases en 3-clases, permitiendo que clasificadores como SVM y LogisticRegression superen a ensembles como RandomForest.
+7. El **Mes 6 post-AVC** (fase cronica) emerge como el momento optimo para la clasificacion fractal per-electrodo (85.46% en 3-clases, 95.54% en 2-clases), seguido del Mes 3 (84.27% y 91.60%). **La convergencia temporal Mes 1→3→6 (70.51% → 84.27% → 85.46%)** con SVM constituye un biomarcador de recuperacion neurologica post-AVC.
 
-8. La **mezcla de meses degrada la clasificacion** (74.99% Mixto vs 85.46% Mes 6), confirmando que cada etapa temporal posee una firma fractal especifica.
+8. **SMOTE es efectivo** para abordar el desbalance de clases en 3-clases, permitiendo que clasificadores como SVM y LogisticRegression superen a ensembles como RandomForest.
 
-9. El subconjunto **Parietal-5** (5 canales, 76.36%) demuestra que las areas parietales contienen informacion particularmente discriminativa, ofreciendo un compromiso viable entre precision y complejidad para sistemas BCI.
+9. La **mezcla de meses degrada la clasificacion** (74.99% Mixto vs 85.46% Mes 6), confirmando que cada etapa temporal posee una firma fractal especifica.
 
-10. El pipeline propuesto (caracteristicas fractales per-electrodo + SMOTE + SVM tuneado) es **computacionalmente eficiente** y clinicamente viable, con un accuracy del 85.46% en 3-clases que se aproxima al estado del arte reportado por Martinez-Peon et al. (96.42% en 4-clases con 14 electrodos dirigidos a areas motoras), a pesar de usar un montaje 10-20 no dirigido y solo 5 pacientes.
+10. El subconjunto **Parietal-5** (5 canales, 76.36%) demuestra que las areas parietales contienen informacion particularmente discriminativa, ofreciendo un compromiso viable entre precision y complejidad para sistemas BCI.
+
+11. El pipeline propuesto (caracteristicas fractales per-electrodo + SMOTE + SVM tuneado) es **computacionalmente eficiente** y clinicamente viable, con un accuracy del 85.46% en 3-clases que se aproxima al estado del arte reportado por Martinez-Peon et al. (96.42% en 4-clases con 14 electrodos dirigidos a areas motoras), a pesar de usar un montaje 10-20 no dirigido y solo 5 pacientes.
 
 ---
 
