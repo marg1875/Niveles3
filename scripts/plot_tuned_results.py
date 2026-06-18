@@ -76,13 +76,13 @@ def plot_svm_evolution():
     logreg_acc = [LOGREG_ACC[m] for m in MONTH_LABELS]
 
     ax.errorbar(months_idx, svm_acc, yerr=svm_std,
-                marker="s", markersize=10, linewidth=2.5, capsize=6,
-                color="#2166AC", label="SVM", zorder=3)
+                marker="o", markersize=10, linewidth=2.5, capsize=6,
+                color="#2166AC", label="SVM (best)", zorder=3)
     ax.plot(months_idx, logreg_acc,
-            marker="D", markersize=8, linewidth=2, linestyle="--",
-            color="#B2182B", label="Logistic Regression", zorder=2)
-    ax.scatter(months_idx, svm_acc, s=150, c="#2166AC", edgecolors="white",
-               linewidths=1.5, zorder=4)
+            marker="s", markersize=8, linewidth=2, linestyle="--",
+            color="#B2182B", label="Logistic Regression (2nd)", zorder=2)
+    ax.scatter(months_idx, svm_acc, s=120, c="#2166AC", edgecolors="white",
+               linewidths=1.5, zorder=4, clip_on=False)
 
     for i, (m, v) in enumerate(zip(months_idx, svm_acc)):
         ax.annotate(f"{v:.1f}%", (m, v + 3.5), ha="center", fontsize=11,
