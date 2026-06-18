@@ -202,13 +202,14 @@ def plot_per_channel_comparison(output_dir=None):
     output_dir = _ensure_dir() if output_dir is None else output_dir
     df = _load_results()
     sub3 = df[(df["Class_Type"] == "3class") & (df["Group"] == "B")]
-    pc_ids = ["B1_HRS_pc", "B2_HO_pc", "B3_HV_pc", "B4_Martinez_pc", "B5_Basic_pc", "B6_All7_pc"]
-    pc_labels = ["Hurst Rescaled Range\n(p = 64)",
-                 "Hurst Original",
-                 "Hurst Semivariogram",
-                 "Martinez\n(HO + HRS + HV)",
-                 "Basic\n(RS + Higuchi + DFA + Variogram)",
-                 "All 7 Methods\n(RS + Higuchi + DFA\n+ Variogram + HO + HRS + HV)"]
+    # HO, HV, HRS first (single methods), then combinations
+    pc_ids = ["B2_HO_pc", "B3_HV_pc", "B1_HRS_pc", "B4_Martinez_pc", "B5_Basic_pc", "B6_All7_pc"]
+    pc_labels = ["Hurst via R/S\n(HO)",
+                 "Hurst via\nSemivariogram (HV)",
+                 "Hurst via R/S\nwith partitions (HRS)",
+                 "HO + HRS + HV",
+                 "RS + Higuchi + DFA\n+ Semivariogram",
+                 "RS + Higuchi + DFA\n+ Semivariogram\n+ HO + HRS + HV"]
     model_order = ["SVM", "kNN", "RandomForest", "NaiveBayes", "LogisticRegression", "MLP", "DecisionTree"]
     model_display = {"SVM": "SVM", "kNN": "k-NN", "RandomForest": "Random Forest",
                      "NaiveBayes": "Naive Bayes", "LogisticRegression": "Logistic Regression",
