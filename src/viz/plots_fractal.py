@@ -204,9 +204,9 @@ def plot_per_channel_comparison(output_dir=None):
     sub3 = df[(df["Class_Type"] == "3class") & (df["Group"] == "B")]
     # HO, HV, HRS first (single methods), then combinations
     pc_ids = ["B2_HO_pc", "B3_HV_pc", "B1_HRS_pc", "B4_Martinez_pc", "B5_Basic_pc", "B6_All7_pc"]
-    pc_labels = ["Hurst via R/S\n(HO)",
-                 "Hurst via\nSemivariogram (HV)",
-                 "Hurst via R/S\nwith partitions (HRS)",
+    pc_labels = ["Hurst (HO)",
+                 "Hurst Semivariogram\n(HV)",
+                 "Hurst R/S (HRS)\np = 64",
                  "HO + HRS + HV",
                  "RS + Higuchi + DFA\n+ Semivariogram",
                  "RS + Higuchi + DFA\n+ Semivariogram\n+ HO + HRS + HV"]
@@ -486,7 +486,7 @@ def plot_kappa_comparison(output_dir=None):
         for bar, k, acc in zip(ax.patches, kappas, accs):
             ax.text(bar.get_width() + 0.02, bar.get_y() + bar.get_height() / 2,
                     f"k={k:.3f}  ({acc:.1f}%)", va="center", fontsize=8)
-    fig.suptitle("Cohen's Kappa by Classifier\n(Basic per-channel features + SMOTE, 3-class)",
+    fig.suptitle("Cohen's Kappa by Classifier\n(RS + Higuchi + DFA + Semivariogram, per-channel + SMOTE, 3-class)",
                  fontweight="bold", y=1.02)
     plt.tight_layout()
     fig.savefig(os.path.join(output_dir, "kappa_comparison.png"))
