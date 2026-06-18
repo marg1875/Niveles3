@@ -20,7 +20,9 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from imblearn.over_sampling import SMOTE
 
 plt.rcParams.update({
-    "font.family": "serif", "font.size": 11,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
+    "font.size": 11,
     "axes.titlesize": 14, "axes.labelsize": 13,
     "figure.dpi": 100, "savefig.dpi": 200,
     "savefig.bbox": "tight", "savefig.facecolor": "white",
