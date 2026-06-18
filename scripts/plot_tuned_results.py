@@ -51,9 +51,9 @@ LOGREG_ACC = {
     "Month 6": 83.99,
 }
 LOGREG_STD = {
-    "Mes 1": 11.4,
-    "Mes 3": 4.5,
-    "Mes 6": 5.4,
+    "Month 1": 11.4,
+    "Month 3": 4.5,
+    "Month 6": 5.4,
 }
 
 # SVM default (before tuning, for comparison)
@@ -74,10 +74,15 @@ def plot_svm_evolution():
     svm_acc = [SVM_ACC[m] for m in MONTH_LABELS]
     svm_std = [SVM_STD[m] for m in MONTH_LABELS]
     logreg_acc = [LOGREG_ACC[m] for m in MONTH_LABELS]
+    logreg_std = [LOGREG_STD[m] for m in MONTH_LABELS]
 
     svm_lower = [a - s for a, s in zip(svm_acc, svm_std)]
     svm_upper = [a + s for a, s in zip(svm_acc, svm_std)]
+    logreg_lower = [a - s for a, s in zip(logreg_acc, logreg_std)]
+    logreg_upper = [a + s for a, s in zip(logreg_acc, logreg_std)]
 
+    ax.fill_between(months_idx, logreg_lower, logreg_upper, alpha=0.08,
+                    color="#B2182B")
     ax.fill_between(months_idx, svm_lower, svm_upper, alpha=0.12,
                     color="#2166AC")
     ax.plot(months_idx, svm_acc,
