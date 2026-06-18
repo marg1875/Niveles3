@@ -207,7 +207,7 @@ def plot_per_channel_comparison(output_dir=None):
               "_RS", "_Higuchi", "_DFA", "_Semivariogram",
               "B5_Basic_pc", "B6_All7_pc"]
     pc_labels = ["Hurst (HO)",
-                 "Hurst Semivariogram\n(HV)",
+                 "Hurst —\nSemivariogram (HV)",
                  "Hurst R/S (HRS)\np = 64",
                  "HO + HRS + HV",
                  "RS",
@@ -226,6 +226,16 @@ def plot_per_channel_comparison(output_dir=None):
 
     # Tuned values for subsets evaluated with best classifier params (Mes 6)
     TUNED_INDIVIDUAL = {
+        "Mes 1": {
+            "_RS": {"SVM": 57.76, "kNN": 47.24, "RandomForest": 59.69, "NaiveBayes": 44.08,
+                    "LogisticRegression": 53.98, "MLP": 53.06, "DecisionTree": 52.35},
+            "_Higuchi": {"SVM": 75.20, "kNN": 65.31, "RandomForest": 70.51, "NaiveBayes": 47.24,
+                         "LogisticRegression": 76.12, "MLP": 65.82, "DecisionTree": 65.82},
+            "_DFA": {"SVM": 66.02, "kNN": 62.35, "RandomForest": 67.76, "NaiveBayes": 46.22,
+                     "LogisticRegression": 62.86, "MLP": 56.02, "DecisionTree": 59.59},
+            "_Semivariogram": {"SVM": 67.55, "kNN": 60.92, "RandomForest": 65.82, "NaiveBayes": 46.53,
+                               "LogisticRegression": 64.59, "MLP": 58.78, "DecisionTree": 58.57},
+        },
         "Mes 6": {
             "_RS": {"SVM": 67.98, "kNN": 63.47, "RandomForest": 73.62, "NaiveBayes": 52.76,
                     "LogisticRegression": 66.18, "MLP": 61.56, "DecisionTree": 62.68},
