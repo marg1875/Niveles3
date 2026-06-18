@@ -203,12 +203,12 @@ def plot_per_channel_comparison(output_dir=None):
     df = _load_results()
     sub3 = df[(df["Class_Type"] == "3class") & (df["Group"] == "B")]
     pc_ids = ["B1_HRS_pc", "B2_HO_pc", "B3_HV_pc", "B4_Martinez_pc", "B5_Basic_pc", "B6_All7_pc"]
-    pc_labels = ["Hurst Rescaled\nRange (p=64)",
-                 "Hurst\nOriginal",
-                 "Hurst\nSemivariogram",
-                 "Martinez Combined\n(HO + HRS + HV)",
-                 "Basic Fractal\n(RS + Higuchi + DFA + Variogram)",
-                 "All 7 Methods\n(RS + Higuchi + DFA +\nVariogram + HO + HRS + HV)"]
+    pc_labels = ["Hurst Rescaled Range\n(p = 64)",
+                 "Hurst Original",
+                 "Hurst Semivariogram",
+                 "Martinez\n(HO + HRS + HV)",
+                 "Basic\n(RS + Higuchi + DFA + Variogram)",
+                 "All 7 Methods\n(RS + Higuchi + DFA\n+ Variogram + HO + HRS + HV)"]
     model_order = ["SVM", "kNN", "RandomForest", "NaiveBayes", "LogisticRegression", "MLP", "DecisionTree"]
     model_display = {"SVM": "SVM", "kNN": "k-NN", "RandomForest": "Random Forest",
                      "NaiveBayes": "Naive Bayes", "LogisticRegression": "Logistic Regression",
@@ -229,7 +229,7 @@ def plot_per_channel_comparison(output_dir=None):
 
     months_disp = ["Month 1", "Month 3", "Month 6"]
     months_key = ["Mes 1", "Mes 3", "Mes 6"]
-    fig, axes = plt.subplots(1, 3, figsize=(20, 7))
+    fig, axes = plt.subplots(1, 3, figsize=(24, 8))
     for ax_idx, (mkey, mdisp) in enumerate(zip(months_key, months_disp)):
         ax = axes[ax_idx]
         ms = sub3[sub3["Month"] == mkey]
@@ -246,7 +246,7 @@ def plot_per_channel_comparison(output_dir=None):
             ax.bar(x + i * width - width * 3.5, vals, width,
                    label=model_display[mname], color=model_colors.get(mname, "#999999"))
         ax.set_xticks(x)
-        ax.set_xticklabels(pc_labels, fontsize=7.5)
+        ax.set_xticklabels(pc_labels, fontsize=7.5, rotation=30, ha="right")
         ax.set_ylabel("Accuracy (%)")
         ax.set_title(mdisp, fontweight="bold")
         ax.set_ylim(30, 95)
