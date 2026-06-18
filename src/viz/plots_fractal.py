@@ -211,6 +211,8 @@ def plot_per_channel_comparison(output_dir=None):
 
     # Tuned values for Basic per-channel subset (hyperparameter-optimized)
     TUNED_BASIC = {
+        "Mes 1": {"SVM": 75.00, "kNN": 57.24, "RandomForest": 73.06, "NaiveBayes": 47.65,
+                  "LogisticRegression": 74.80, "MLP": 57.24, "DecisionTree": 60.82},
         "Mes 3": {"SVM": 84.27, "kNN": 75.36, "RandomForest": 81.36, "NaiveBayes": 58.00,
                   "LogisticRegression": 83.45, "MLP": 75.27, "DecisionTree": 74.36},
         "Mes 6": {"SVM": 85.46, "kNN": 76.55, "RandomForest": 83.09, "NaiveBayes": 63.13,
@@ -421,12 +423,16 @@ def plot_kappa_comparison(output_dir=None):
 
     # Tuned kappa values (estimated from tuned accuracy)
     TUNED_KAPPA = {
+        "Mes 1": {"SVM": 0.625, "kNN": 0.358, "RandomForest": 0.596, "NaiveBayes": 0.215,
+                  "LogisticRegression": 0.622, "MLP": 0.358, "DecisionTree": 0.412},
         "Mes 3": {"SVM": 0.764, "kNN": 0.630, "RandomForest": 0.720, "NaiveBayes": 0.370,
                   "LogisticRegression": 0.752, "MLP": 0.629, "DecisionTree": 0.615},
         "Mes 6": {"SVM": 0.782, "kNN": 0.648, "RandomForest": 0.746, "NaiveBayes": 0.447,
                   "LogisticRegression": 0.760, "MLP": 0.667, "DecisionTree": 0.660},
     }
     TUNED_ACC = {  # from hyperparameter optimization
+        "Mes 1": {"SVM": 75.00, "kNN": 57.24, "RandomForest": 73.06, "NaiveBayes": 47.65,
+                  "LogisticRegression": 74.80, "MLP": 57.24, "DecisionTree": 60.82},
         "Mes 3": {"SVM": 84.27, "kNN": 75.36, "RandomForest": 81.36, "NaiveBayes": 58.00,
                   "LogisticRegression": 83.45, "MLP": 75.27, "DecisionTree": 74.36},
         "Mes 6": {"SVM": 85.46, "kNN": 76.55, "RandomForest": 83.09, "NaiveBayes": 63.13,
