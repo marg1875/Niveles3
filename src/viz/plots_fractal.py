@@ -203,8 +203,16 @@ def plot_per_channel_comparison(output_dir=None):
     df = _load_results()
     sub3 = df[(df["Class_Type"] == "3class") & (df["Group"] == "B")]
     pc_ids = ["B1_HRS_pc", "B2_HO_pc", "B3_HV_pc", "B4_Martinez_pc", "B5_Basic_pc", "B6_All7_pc"]
-    pc_labels = ["HRS\n(partitions)", "HO\n(original)", "HV\n(semivariogram)", "Martinez\n(HO+HRS+HV)", "Basic\n(RS+Hi+DFA+Var)", "All\n(7 methods)"]
+    pc_labels = ["Hurst Rescaled\nRange (p=64)",
+                 "Hurst\nOriginal",
+                 "Hurst\nSemivariogram",
+                 "Martinez Combined\n(HO + HRS + HV)",
+                 "Basic Fractal\n(RS + Higuchi + DFA + Variogram)",
+                 "All 7 Methods\n(RS + Higuchi + DFA +\nVariogram + HO + HRS + HV)"]
     model_order = ["SVM", "kNN", "RandomForest", "NaiveBayes", "LogisticRegression", "MLP", "DecisionTree"]
+    model_display = {"SVM": "SVM", "kNN": "k-NN", "RandomForest": "Random Forest",
+                     "NaiveBayes": "Naive Bayes", "LogisticRegression": "Logistic Regression",
+                     "MLP": "MLP", "DecisionTree": "Decision Tree"}
     model_colors = {"SVM": "#2166AC", "kNN": "#4393C3", "RandomForest": "#66C2A5",
                     "NaiveBayes": "#A6D854", "LogisticRegression": "#FFD92F",
                     "MLP": "#FC8D62", "DecisionTree": "#E41A1C"}
@@ -236,7 +244,7 @@ def plot_per_channel_comparison(output_dir=None):
                     row = ms[(ms["Model"] == mname) & (ms["Feature_Subset"] == sid)]
                     vals.append(row.iloc[0]["Accuracy"] * 100 if len(row) > 0 else 0)
             ax.bar(x + i * width - width * 3.5, vals, width,
-                   label=mname, color=model_colors.get(mname, "#999999"))
+                   label=model_display[mname], color=model_colors.get(mname, "#999999"))
         ax.set_xticks(x)
         ax.set_xticklabels(pc_labels, fontsize=7.5)
         ax.set_ylabel("Accuracy (%)")
@@ -442,6 +450,9 @@ def plot_kappa_comparison(output_dir=None):
     months_disp = ["Month 1", "Month 3", "Month 6"]
     months_key = ["Mes 1", "Mes 3", "Mes 6"]
     model_order = ["SVM", "kNN", "RandomForest", "NaiveBayes", "LogisticRegression", "MLP", "DecisionTree"]
+    model_display = {"SVM": "SVM", "kNN": "k-NN", "RandomForest": "Random Forest",
+                     "NaiveBayes": "Naive Bayes", "LogisticRegression": "Logistic Regression",
+                     "MLP": "MLP", "DecisionTree": "Decision Tree"}
     model_colors = {"SVM": "#2166AC", "kNN": "#4393C3", "RandomForest": "#66C2A5",
                     "NaiveBayes": "#A6D854", "LogisticRegression": "#FFD92F",
                     "MLP": "#FC8D62", "DecisionTree": "#E41A1C"}
@@ -462,11 +473,12 @@ def plot_kappa_comparison(output_dir=None):
         models = [d["model"] for d in data]
         kappas = [d["kappa"] for d in data]
         accs = [d["acc"] for d in data]
+        models_disp = [model_display.get(m, m) for m in models]
         colors_list = [model_colors.get(m, "#999999") for m in models]
         y = np.arange(len(models))
         ax.barh(y, kappas, color=colors_list, edgecolor="white", linewidth=0.8)
         ax.set_yticks(y)
-        ax.set_yticklabels(models, fontsize=9)
+        ax.set_yticklabels(models_disp, fontsize=9)
         ax.set_xlabel("Cohen's Kappa")
         ax.set_title(mdisp, fontweight="bold")
         ax.axvline(x=0, color="black", linewidth=0.5)
