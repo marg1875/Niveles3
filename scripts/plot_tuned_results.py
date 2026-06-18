@@ -86,7 +86,7 @@ def plot_svm_evolution():
 
     for i, (m, v) in enumerate(zip(months_idx, svm_acc)):
         ax.annotate(f"{v:.1f}%", (m, v + 3.5), ha="center", fontsize=11,
-                    fontweight="bold", color="#2166AC")
+                    fontweight="bold", color="#333333")
 
     ax.set_xticks(months_idx)
     ax.set_xticklabels(MONTH_LABELS, fontsize=12)
