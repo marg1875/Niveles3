@@ -202,12 +202,18 @@ def plot_per_channel_comparison(output_dir=None):
     output_dir = _ensure_dir() if output_dir is None else output_dir
     df = _load_results()
     sub3 = df[(df["Class_Type"] == "3class") & (df["Group"] == "B")]
-    # HO, HV, HRS first (single methods), then combinations
-    pc_ids = ["B2_HO_pc", "B3_HV_pc", "B1_HRS_pc", "B4_Martinez_pc", "B5_Basic_pc", "B6_All7_pc"]
+    # Feature subsets: Hurst methods → individual basic → combinations
+    pc_ids = ["B2_HO_pc", "B3_HV_pc", "B1_HRS_pc", "B4_Martinez_pc",
+              "_RS", "_Higuchi", "_DFA", "_Semivariogram",
+              "B5_Basic_pc", "B6_All7_pc"]
     pc_labels = ["Hurst (HO)",
                  "Hurst Semivariogram\n(HV)",
                  "Hurst R/S (HRS)\np = 64",
                  "HO + HRS + HV",
+                 "RS",
+                 "Higuchi",
+                 "DFA",
+                 "Semivariogram",
                  "RS + Higuchi + DFA\n+ Semivariogram",
                  "RS + Higuchi + DFA\n+ Semivariogram\n+ HO + HRS + HV"]
     model_order = ["SVM", "kNN", "RandomForest", "NaiveBayes", "LogisticRegression", "MLP", "DecisionTree"]
@@ -218,7 +224,31 @@ def plot_per_channel_comparison(output_dir=None):
                     "NaiveBayes": "#A6D854", "LogisticRegression": "#FFD92F",
                     "MLP": "#FC8D62", "DecisionTree": "#E41A1C"}
 
-    # Tuned values for Basic per-channel subset (hyperparameter-optimized)
+    # Tuned values for subsets evaluated with best classifier params (Mes 6)
+    TUNED_INDIVIDUAL = {
+        "Mes 6": {
+            "_RS": {"SVM": 67.98, "kNN": 63.47, "RandomForest": 73.62, "NaiveBayes": 52.76,
+                    "LogisticRegression": 66.18, "MLP": 61.56, "DecisionTree": 62.68},
+            "_Higuchi": {"SVM": 81.17, "kNN": 81.85, "RandomForest": 83.20, "NaiveBayes": 57.50,
+                         "LogisticRegression": 84.22, "MLP": 73.96, "DecisionTree": 77.45},
+            "_DFA": {"SVM": 77.00, "kNN": 73.39, "RandomForest": 80.83, "NaiveBayes": 55.81,
+                     "LogisticRegression": 76.10, "MLP": 70.69, "DecisionTree": 73.39},
+            "_Semivariogram": {"SVM": 78.02, "kNN": 74.52, "RandomForest": 78.69, "NaiveBayes": 58.74,
+                               "LogisticRegression": 78.92, "MLP": 68.88, "DecisionTree": 73.62},
+        },
+        "Mes 3": {
+            "_RS": {"SVM": 61.36, "kNN": 57.91, "RandomForest": 66.18, "NaiveBayes": 53.64,
+                    "LogisticRegression": 58.27, "MLP": 50.09, "DecisionTree": 59.00},
+            "_Higuchi": {"SVM": 83.45, "kNN": 76.45, "RandomForest": 80.36, "NaiveBayes": 53.45,
+                         "LogisticRegression": 80.82, "MLP": 57.73, "DecisionTree": 74.18},
+            "_DFA": {"SVM": 64.82, "kNN": 59.27, "RandomForest": 65.00, "NaiveBayes": 53.82,
+                     "LogisticRegression": 61.00, "MLP": 51.45, "DecisionTree": 57.55},
+            "_Semivariogram": {"SVM": 72.64, "kNN": 66.82, "RandomForest": 72.82, "NaiveBayes": 53.09,
+                               "LogisticRegression": 65.36, "MLP": 53.09, "DecisionTree": 65.45},
+        },
+    }
+
+    # Tuned values for combined Basic subset (all classifiers optimized)
     TUNED_BASIC = {
         "Mes 1": {"SVM": 75.00, "kNN": 57.24, "RandomForest": 73.06, "NaiveBayes": 47.65,
                   "LogisticRegression": 74.80, "MLP": 57.24, "DecisionTree": 60.82},
@@ -230,24 +260,28 @@ def plot_per_channel_comparison(output_dir=None):
 
     months_disp = ["Month 1", "Month 3", "Month 6"]
     months_key = ["Mes 1", "Mes 3", "Mes 6"]
-    fig, axes = plt.subplots(1, 3, figsize=(24, 8))
+    fig, axes = plt.subplots(1, 3, figsize=(30, 8))
     for ax_idx, (mkey, mdisp) in enumerate(zip(months_key, months_disp)):
         ax = axes[ax_idx]
         ms = sub3[sub3["Month"] == mkey]
         x = np.arange(len(pc_ids))
-        width = 0.11
+        width = 0.08
         for i, mname in enumerate(model_order):
             vals = []
             for sid in pc_ids:
+                # Tuned combined Basic values
                 if sid == "B5_Basic_pc" and mkey in TUNED_BASIC:
                     vals.append(TUNED_BASIC[mkey].get(mname, 0))
+                # Tuned individual basic methods (best params for each classifier)
+                elif sid.startswith("_") and mkey in TUNED_INDIVIDUAL and sid in TUNED_INDIVIDUAL[mkey]:
+                    vals.append(TUNED_INDIVIDUAL[mkey][sid].get(mname, 0))
                 else:
                     row = ms[(ms["Model"] == mname) & (ms["Feature_Subset"] == sid)]
                     vals.append(row.iloc[0]["Accuracy"] * 100 if len(row) > 0 else 0)
-            ax.bar(x + i * width - width * 3.5, vals, width,
+            ax.bar(x + i * width - width * 3, vals, width,
                    label=model_display[mname], color=model_colors.get(mname, "#999999"))
         ax.set_xticks(x)
-        ax.set_xticklabels(pc_labels, fontsize=7.5, rotation=30, ha="right")
+        ax.set_xticklabels(pc_labels, fontsize=7, rotation=35, ha="right")
         ax.set_ylabel("Accuracy (%)")
         ax.set_title(mdisp, fontweight="bold")
         ax.set_ylim(30, 95)
