@@ -98,11 +98,6 @@ def plot_svm_evolution():
     ax.grid(True, alpha=0.3, linestyle=":")
     ax.set_xlim(0.5, 6.5)
 
-    phase_labels = {1: "Acute\nphase", 3: "Sub-acute\nphase", 6: "Chronic\nphase"}
-    for m, label in phase_labels.items():
-        ax.annotate(label, (m, 61.5), ha="center", fontsize=9,
-                    fontstyle="italic", color="gray")
-
     fig.tight_layout()
     path = os.path.join(OUTPUT_DIR, "evolution_months.png")
     fig.savefig(path, dpi=200, bbox_inches="tight", facecolor="white")
