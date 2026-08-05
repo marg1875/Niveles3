@@ -1,15 +1,17 @@
 # Clasificacion de Niveles de Fuerza en Imagery Motor post-AVC mediante Caracteristicas Fractales y Espectrales con Ventanas Fijas
 
 **Pipeline:** Niveles3
-**Fecha:** Junio 2026
+**Fecha:** Junio 2026 (recalculado Agosto 2026 — ver nota metodologica)
 **Validacion:** Intra-sujeto 5-fold Cross-Validation (80/20)
 **Ventana optima:** W700 = 2.8 segundos (0% overlap, segmentos contiguos)
+
+> **Nota metodologica (Agosto 2026):** Las cifras de este documento fueron recalculadas respecto a la version original de Junio 2026 por tres motivos, todos verificados durante una auditoria de codigo: (1) se corrigio `compute_hrs()` (`src/features/fractal.py`), que con `p=64` caia siempre en un fallback a Hurst Original sin computar particiones reales para las duraciones de ventana usadas en el estudio — verificado numericamente que `HRS_p64 == HO` bit a bit para N entre 500 y 2000 muestras; `BEST_HRS_PARTITION` se cambio a `p=8`, el mayor valor que empiricamente si ejecuta el pooling particionado real en W700; (2) el archivo de features que efectivamente alimentaba la clasificacion (`Fixed_W700_Full_Features.csv`) era una copia manual desactualizada — el extractor actual escribe `Fixed_W700_3class_Features.csv`, y ese mismatch de nombres impedia que una re-ejecucion actualizara los resultados publicados; (3) `requirements.txt` no fijaba versiones de numpy/scipy/scikit-learn — dado que el preprocesamiento usa ICA (`FastICA`, iterativo/aleatorio), la re-ejecucion en un entorno con versiones mas nuevas produce valores de features ligeramente distintos aun con `random_state` fijo. Las versiones exactas quedaron fijadas en `requirements.txt` para que el pipeline sea reproducible de aqui en adelante. La optimizacion de rendimiento del pipeline (vectorizacion, paralelismo) fue verificada como no-op numerico mediante tests de regresion (`tests/test_fractal.py`, `tests/test_spectral.py`) y no contribuye a ninguno de los cambios de cifras aqui documentados.
 
 ---
 
 ## Resumen
 
-Se evaluo un pipeline de clasificacion de niveles de fuerza en Motor Imagery (MI) post-Accidente Cerebrovascular (AVC) combinando caracteristicas fractales (Rescaled Range, Higuchi, Detrended Fluctuation Analysis, Semivariograma, Promedio, Hurst Original, Hurst R/S con Particiones, Hurst via Semivariograma) y caracteristicas espectrales (potencias de banda δ/θ/α/β/γ, ratios de Desincronizacion Relacionada a Eventos, entropia espectral, ratio α/β, ratio μ/β). Sobre 5 pacientes (P1-P5) con registros EEG de 16 canales a 250 Hz en tres momentos temporales (Mes 1, Mes 3, Mes 6), se optimizo el tamano de ventana mediante un barrido empirico de 16 tamanos (2.0s–8.0s) determinando W=700 muestras (2.8 s) como la configuracion optima. Empleando validacion intra-sujeto con StratifiedKFold (k=5) y pool de predicciones, la combinacion Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales alcanzo **93.27% de accuracy** (F1=0.9326) en el Mes 1 con Regresion Logistica, superando el objetivo del 80%. Las caracteristicas espectrales demostraron ser el factor dominante (88–93% en solitario), mientras que las caracteristicas fractales puras (8 metodos) alcanzaron hasta 84% sin asistencia espectral, validando su capacidad discriminativa independiente del nivel de fuerza imaginado.
+Se evaluo un pipeline de clasificacion de niveles de fuerza en Motor Imagery (MI) post-Accidente Cerebrovascular (AVC) combinando caracteristicas fractales (Rescaled Range, Higuchi, Detrended Fluctuation Analysis, Semivariograma, Promedio, Hurst Original, Hurst R/S con Particiones, Hurst via Semivariograma) y caracteristicas espectrales (potencias de banda δ/θ/α/β/γ, ratios de Desincronizacion Relacionada a Eventos, entropia espectral, ratio α/β, ratio μ/β). Sobre 5 pacientes (P1-P5) con registros EEG de 16 canales a 250 Hz en tres momentos temporales (Mes 1, Mes 3, Mes 6), se optimizo el tamano de ventana mediante un barrido empirico de 16 tamanos (2.0s–8.0s) determinando W=700 muestras (2.8 s) como la configuracion optima. Empleando validacion intra-sujeto con StratifiedKFold (k=5) y pool de predicciones, la combinacion Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales alcanzo **93.67% de accuracy** (F1=0.9367) en el Mes 1 con Regresion Logistica, superando el objetivo del 80%; el mejor resultado global del estudio corresponde al Mes 3 con **94.55%** usando solo las 13 caracteristicas espectrales. Las caracteristicas espectrales demostraron ser el factor dominante (88–95% en solitario), mientras que las caracteristicas fractales puras (8 metodos, con la correccion de `HRS_p64`) alcanzaron hasta 82% sin asistencia espectral, validando su capacidad discriminativa independiente del nivel de fuerza imaginado.
 
 ---
 
@@ -255,50 +257,52 @@ A continuacion se presentan las tablas completas de accuracy (%) para cada combi
 
 | Clasificador | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio | Δ-Hurst Original / Δ-Hurst R/S con Particiones / Δ-Hurst Semivariograma | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio / Δ-Hurst Original / Δ-Hurst R/S con Particiones / Δ-Hurst Semivariograma | Potencia de banda δ / Potencia de banda θ / Potencia de banda α / Potencia de banda β / Potencia de banda γ / Ratio ERD δ / Ratio ERD θ / Ratio ERD α / Ratio ERD β / Ratio ERD γ / Entropia Espectral / Ratio α/β / Ratio μ/β | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales |
 |-------------|-----------|-----------|-----------|-----------|-----------|
-| SVM | 68.59 | 70.14 | 75.43 | 79.81 | 83.89 |
-| RandomForest | 68.79 | 70.24 | 76.31 | 88.37 | **89.48** |
-| LogisticRegression | 60.47 | 61.11 | 62.86 | 74.55 | 74.96 |
-| kNN | 68.32 | 70.34 | 74.35 | 76.71 | 79.37 |
-| GaussianNB | 57.84 | 56.72 | 58.44 | 64.85 | 65.96 |
+| SVM | 65.82 | 68.28 | 73.21 | 76.24 | 81.77 |
+| RandomForest | 67.04 | 70.07 | 73.88 | 87.63 | **89.01** |
+| LogisticRegression | 60.73 | 62.05 | 65.59 | 66.67 | 72.26 |
+| kNN | 64.64 | 70.14 | 69.67 | 75.13 | 77.65 |
+| GaussianNB | 58.00 | 57.20 | 58.81 | 61.04 | 62.29 |
 
 ### 5.2 Mes 1 (fase aguda, 980 epocas)
 
 | Clasificador | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio | Δ-Hurst Original / Δ-Hurst R/S con Particiones / Δ-Hurst Semivariograma | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio / Δ-Hurst Original / Δ-Hurst R/S con Particiones / Δ-Hurst Semivariograma | Potencia de banda δ / Potencia de banda θ / Potencia de banda α / Potencia de banda β / Potencia de banda γ / Ratio ERD δ / Ratio ERD θ / Ratio ERD α / Ratio ERD β / Ratio ERD γ / Entropia Espectral / Ratio α/β / Ratio μ/β | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales |
 |-------------|-----------|-----------|-----------|-----------|-----------|
-| SVM | 75.10 | 80.82 | 81.12 | 88.16 | 90.51 |
-| RandomForest | 73.37 | 78.57 | 80.61 | 88.06 | 89.08 |
-| LogisticRegression | 67.35 | 72.24 | 74.29 | 90.31 | **93.27** |
-| kNN | 72.55 | 78.88 | 77.45 | 83.27 | 83.06 |
-| GaussianNB | 66.22 | 64.08 | 65.71 | 73.06 | 73.27 |
+| SVM | 74.59 | 78.16 | 80.20 | 90.41 | 92.14 |
+| RandomForest | 74.69 | 76.94 | 78.67 | 89.80 | 91.53 |
+| LogisticRegression | 67.55 | 74.29 | 77.96 | 93.57 | **93.67** |
+| kNN | 72.76 | 76.33 | 76.94 | 87.35 | 85.61 |
+| GaussianNB | 62.86 | 64.29 | 63.47 | 78.47 | 77.96 |
 
 ### 5.3 Mes 3 (fase sub-aguda, 1,100 epocas)
 
 | Clasificador | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio | Δ-Hurst Original / Δ-Hurst R/S con Particiones / Δ-Hurst Semivariograma | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio / Δ-Hurst Original / Δ-Hurst R/S con Particiones / Δ-Hurst Semivariograma | Potencia de banda δ / Potencia de banda θ / Potencia de banda α / Potencia de banda β / Potencia de banda γ / Ratio ERD δ / Ratio ERD θ / Ratio ERD α / Ratio ERD β / Ratio ERD γ / Entropia Espectral / Ratio α/β / Ratio μ/β | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales |
 |-------------|-----------|-----------|-----------|-----------|-----------|
-| SVM | 76.09 | 82.55 | 81.55 | 91.09 | 91.91 |
-| RandomForest | 74.36 | 81.55 | 81.09 | **93.45** | 93.18 |
-| LogisticRegression | 71.45 | 75.64 | 77.73 | 92.82 | 93.18 |
-| kNN | 74.09 | 79.55 | 78.18 | 87.55 | 87.55 |
-| GaussianNB | 67.91 | 66.55 | 67.82 | 76.91 | 77.00 |
+| SVM | 70.82 | 78.55 | 80.55 | 90.55 | 91.27 |
+| RandomForest | 68.55 | 78.91 | 79.27 | 92.00 | 91.82 |
+| LogisticRegression | 65.36 | 74.09 | 75.73 | **94.55** | 94.27 |
+| kNN | 69.55 | 76.36 | 76.55 | 85.27 | 84.64 |
+| GaussianNB | 61.09 | 65.82 | 64.45 | 76.91 | 76.00 |
 
 ### 5.4 Mes 6 (fase cronica, 887 epocas, 4 pacientes)
 
 | Clasificador | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio | Δ-Hurst Original / Δ-Hurst R/S con Particiones / Δ-Hurst Semivariograma | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio / Δ-Hurst Original / Δ-Hurst R/S con Particiones / Δ-Hurst Semivariograma | Potencia de banda δ / Potencia de banda θ / Potencia de banda α / Potencia de banda β / Potencia de banda γ / Ratio ERD δ / Ratio ERD θ / Ratio ERD α / Ratio ERD β / Ratio ERD γ / Entropia Espectral / Ratio α/β / Ratio μ/β | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales |
 |-------------|-----------|-----------|-----------|-----------|-----------|
-| SVM | 76.55 | 77.79 | 83.88 | 86.25 | 90.53 |
-| RandomForest | 74.97 | 78.13 | 83.31 | 90.64 | **92.90** |
-| LogisticRegression | 68.88 | 76.10 | 82.64 | 89.29 | **92.90** |
-| kNN | 73.62 | 74.75 | 80.50 | 80.83 | 82.30 |
-| GaussianNB | 64.83 | 64.83 | 65.84 | 77.34 | 77.23 |
+| SVM | 73.96 | 81.06 | 82.30 | 89.18 | 90.53 |
+| RandomForest | 72.38 | 78.13 | 81.29 | 91.88 | 92.67 |
+| LogisticRegression | 70.69 | 79.59 | 80.38 | 93.35 | **93.69** |
+| kNN | 69.56 | 79.14 | 79.26 | 85.34 | 85.79 |
+| GaussianNB | 65.61 | 70.12 | 67.53 | 80.50 | 81.74 |
 
 ### 5.5 Mejor combinacion por condicion (resumen)
 
 | Condicion | Mejor Accuracy | Mejor F1 Macro | Modelo | Subset de Caracteristicas |
 |-----------|---------------|----------------|--------|---------------------------|
-| Mixto | 89.48% | 0.8948 | RandomForest | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales |
-| Mes 1 | **93.27%** | **0.9326** | LogisticRegression | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales |
-| Mes 3 | 93.18% | 0.9318 | RandomForest / LogisticRegression | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales |
-| Mes 6 | 92.90% | 0.9290 | RandomForest / LogisticRegression | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales |
+| Mixto | 89.01% | 0.8901 | RandomForest | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales |
+| Mes 1 | 93.67% | 0.9367 | LogisticRegression | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales |
+| Mes 3 | **94.55%** | **0.9454** | LogisticRegression | 13 Caracteristicas Espectrales (solas; la combinacion con fractales da 94.27%) |
+| Mes 6 | 93.69% | 0.9368 | LogisticRegression | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales |
+
+**Mejor resultado del estudio:** Mes 3, solo caracteristicas espectrales, LogisticRegression, 94.55% (F1=0.9454). Entre los subsets que incluyen caracteristicas fractales, el mejor resultado es Mes 3 con la combinacion Δ+Espectral (94.27%), seguido de cerca por Mes 6 (93.69%) y Mes 1 (93.67%).
 
 ### 5.6 Contribucion de las caracteristicas fractales vs espectrales
 
@@ -306,12 +310,14 @@ Para aislar la contribucion especifica de cada familia de caracteristicas, se ev
 
 | Condicion | Solo Fractales (8 metodos) | Solo Espectrales (13 metodos) | Δ + Espectral (18 metodos) | Ganancia Fractal |
 |-----------|---------------------------|-------------------------------|---------------------------|------------------|
-| Mixto | 76.31% (RF) | 88.37% (RF) | 89.48% (RF) | +1.11 pts |
-| Mes 1 | 81.12% (SVM) | 90.31% (LogReg) | 93.27% (LogReg) | +2.96 pts |
-| Mes 3 | 82.55% (SVM) | 93.45% (RF) | 93.18% (RF) | −0.27 pts |
-| Mes 6 | 83.88% (SVM) | 90.64% (RF) | 92.90% (RF) | +2.26 pts |
+| Mixto | 73.88% (RF) | 87.63% (RF) | 89.01% (RF) | +1.38 pts |
+| Mes 1 | 80.20% (SVM) | 93.57% (LogReg) | 93.67% (LogReg) | +0.10 pts |
+| Mes 3 | 80.55% (SVM) | 94.55% (LogReg) | 94.27% (LogReg) | −0.28 pts |
+| Mes 6 | 82.30% (SVM) | 93.35% (LogReg) | 93.69% (LogReg) | +0.34 pts |
 
-**Interpretacion:** Las caracteristicas espectrales en solitario alcanzan rendimientos de 88–93%, demostrando ser el factor dominante en la discriminacion de niveles de MI. Sin embargo, las caracteristicas fractales puras (8 metodos) alcanzan hasta 83.88% sin asistencia espectral, lo que valida su capacidad discriminativa independiente. La combinacion de ambas familias (Δ+Espectral) proporciona una mejora marginal de 0–3 puntos porcentuales, indicando que la informacion capturada por los metodos fractales es en gran medida **complementaria pero parcialmente redundante** con la informacion espectral. Notablemente, en el Mes 3, las caracteristicas espectrales solas (93.45%) superan ligeramente a la combinacion con fractales (93.18%), sugiriendo que en la fase sub-aguda la senal espectral es suficientemente rica para la clasificacion sin necesidad de informacion fractal adicional.
+*Ganancia Fractal = Δ+Espectral − Solo Espectrales (aporte marginal de anadir las 8 caracteristicas fractales a las 13 espectrales).*
+
+**Interpretacion:** Las caracteristicas espectrales en solitario alcanzan rendimientos de 88–95%, demostrando ser el factor dominante en la discriminacion de niveles de MI. Sin embargo, las caracteristicas fractales puras (8 metodos, con `HRS_p64` corregido a particiones reales) alcanzan hasta 82.30% sin asistencia espectral, lo que valida su capacidad discriminativa independiente. La combinacion de ambas familias (Δ+Espectral) proporciona una mejora marginal de entre −0.28 y +1.38 puntos porcentuales, indicando que la informacion capturada por los metodos fractales es en gran medida **complementaria pero parcialmente redundante** con la informacion espectral. En el Mes 3, las caracteristicas espectrales solas (94.55%) superan a la combinacion con fractales (94.27%), sugiriendo que en la fase sub-aguda la senal espectral es suficientemente rica para la clasificacion sin necesidad de informacion fractal adicional — el mismo patron observado en Mixto, Mes1 y Mes6 es una ganancia marginal positiva pero pequena (≤1.4 pts).
 
 ---
 
@@ -325,17 +331,19 @@ Para aislar la contribucion especifica de cada familia de caracteristicas, se ev
 | Epocas dinamicas (ERD) | LOPO (inter-sujeto) | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio / Δ-Hurst Original / Δ-Hurst R/S con Particiones / Δ-Hurst Semivariograma | 63.34% |
 | Epocas dinamicas (ERD) | Intra-sujeto | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio | 71.79% |
 | Epocas dinamicas (ERD) | Intra-sujeto | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio / Δ-Hurst Original / Δ-Hurst R/S con Particiones / Δ-Hurst Semivariograma | 73.56% |
-| Ventanas fijas W700 | Intra-sujeto | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio (spatial mean) | 71.12% |
-| Ventanas fijas W700 | Intra-sujeto | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio / Δ-Hurst Original / Δ-Hurst R/S con Particiones / Δ-Hurst Semivariograma | 81.55% |
-| Ventanas fijas W700 | Intra-sujeto | **Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales** | **93.27%** |
+| Ventanas fijas W700 | Intra-sujeto | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio (spatial mean) | 71.12%¹ |
+| Ventanas fijas W700 | Intra-sujeto | Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio / Δ-Hurst Original / Δ-Hurst R/S con Particiones / Δ-Hurst Semivariograma | 82.30% |
+| Ventanas fijas W700 | Intra-sujeto | **Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales** | **94.27%** |
+
+¹ Fila sin recalcular en esta revision: proviene del barrido de ventana de la Seccion 4 (`scripts/extract_multi_window.py` / `classify_windows.py`, promedio espacial + RandomForest unicamente), un pipeline distinto al de las Secciones 5–9 que no fue parte de esta auditoria.
 
 ### 6.2 Observaciones clave
 
 1. **LOPO vs Intra-sujeto:** El cambio de validacion inter-sujeto (LOPO) a intra-sujeto (5-fold CV) produjo una mejora de ~8–10 puntos porcentuales con las mismas caracteristicas fractales, demostrando que los patrones de activacion fractal durante MI son altamente **especificos de cada paciente**.
 
-2. **Dinamico vs Fijo:** Con caracteristicas exclusivamente fractales (Δ+HO/HRS/HV), las ventanas fijas W700 (81.55%) superan a las epocas dinamicas basadas en ERD (73.56%). Las ventanas contiguas proporcionan **mas datos de entrenamiento** (2,967 epocas vs ~1,184 epocas dinamicas) y evitan el sesgo de seleccion introducido por el detector de ERD.
+2. **Dinamico vs Fijo:** Con caracteristicas exclusivamente fractales (Δ+HO/HRS/HV), las ventanas fijas W700 (82.30%) superan a las epocas dinamicas basadas en ERD (73.56%). Las ventanas contiguas proporcionan **mas datos de entrenamiento** (2,967 epocas vs ~1,184 epocas dinamicas) y evitan el sesgo de seleccion introducido por el detector de ERD.
 
-3. **Rol de las caracteristicas espectrales:** La inclusion de caracteristicas espectrales (ERD ratios, potencias de banda, entropia) produce un salto de ~12 puntos, llevando el rendimiento de ~81% a ~93%. Esto sugiere que las caracteristicas fractales y espectrales capturan aspectos **diferentes y complementarios** de la dinamica neuronal durante MI.
+3. **Rol de las caracteristicas espectrales:** La inclusion de caracteristicas espectrales (ERD ratios, potencias de banda, entropia) produce un salto de ~12 puntos, llevando el rendimiento de ~82% a ~94%. Esto sugiere que las caracteristicas fractales y espectrales capturan aspectos **diferentes y complementarios** de la dinamica neuronal durante MI.
 
 ---
 
@@ -345,26 +353,26 @@ Para aislar la contribucion especifica de cada familia de caracteristicas, se ev
 
 | Mes | Mejor Modelo | Accuracy | F1 Macro | Epocas | Pacientes |
 |-----|-------------|----------|----------|--------|-----------|
-| 1 (Agudo) | LogisticRegression | 93.27% | 0.9326 | 980 | 5 |
-| 3 (Sub-agudo) | RandomForest | 93.18% | 0.9318 | 1,100 | 5 |
-| 6 (Cronico) | RandomForest | 92.90% | 0.9290 | 887 | 4* |
-| Mixto | RandomForest | 89.48% | 0.8948 | 2,967 | 5 |
+| 1 (Agudo) | LogisticRegression | 93.67% | 0.9367 | 980 | 5 |
+| 3 (Sub-agudo) | LogisticRegression | 94.27% | 0.9427 | 1,100 | 5 |
+| 6 (Cronico) | LogisticRegression | 93.69% | 0.9368 | 887 | 4* |
+| Mixto | RandomForest | 89.01% | 0.8901 | 2,967 | 5 |
 
 *P5 sin datos de Mes 6.
 
 ### 7.2 Observaciones
 
-1. **La fase aguda (Mes 1) clasifica sorprendentemente bien:** Con 93.27%, el Mes 1 supera ligeramente al Mes 3 (93.18%) y al Mes 6 (92.90%). Este resultado contradice la expectativa de que la senal EEG en la fase aguda post-AVC seria mas ruidosa o menos discriminativa. Por el contrario, los cambios neurales tempranos tras el AVC podrian generar patrones de activacion mas marcados y por tanto mas faciles de clasificar.
+1. **Los tres meses individuales clasifican de forma muy similar (93.7–94.3%):** A diferencia de la version anterior de este analisis, con las cifras recalculadas los tres momentos temporales quedan agrupados en un rango estrecho: Mes 3 (94.27%), Mes 6 (93.69%) y Mes 1 (93.67%) — una diferencia de apenas 0.6 puntos entre el mejor y el peor. Esto sugiere que la senal discriminativa fractal+espectral del MI es consistentemente fuerte a lo largo de toda la rehabilitacion, sin una etapa claramente superior a las demas.
 
-2. **El Mes 3 es el "punto dulce" esperado:** Con 93.18% y el mayor numero de epocas (1,100), el Mes 3 representa la fase de rehabilitacion sub-aguda donde la reorganizacion cortical esta en curso pero ya estabilizada. El hecho de que las caracteristicas espectrales solas alcancen 93.45% en este mes (superando a la combinacion con fractales) sugiere que los patrones de ERD en mu/beta son particularmente claros en esta etapa.
+2. **El Mes 3 es el "punto dulce" esperado, y ahora tambien el mejor:** Con 94.27% (Δ+Espectral) y el mayor numero de epocas (1,100), el Mes 3 representa la fase de rehabilitacion sub-aguda donde la reorganizacion cortical esta en curso pero ya estabilizada. Las caracteristicas espectrales solas alcanzan 94.55% en este mes — el mejor resultado de todo el estudio —, superando incluso a la combinacion con fractales, lo que sugiere que los patrones de ERD en mu/beta son particularmente claros en esta etapa y que anadir informacion fractal aporta poco o nada adicional aqui.
 
-3. **El Mes 6 mantiene alto rendimiento a pesar de menos datos:** Con solo 4 pacientes y 887 epocas, el accuracy se mantiene en 92.90%, indicando que la senal discriminativa persiste en la fase cronica.
+3. **El Mes 6 mantiene alto rendimiento a pesar de menos datos:** Con solo 4 pacientes y 887 epocas, el accuracy se mantiene en 93.69%, indicando que la senal discriminativa persiste en la fase cronica, practicamente al mismo nivel que la fase aguda.
 
-4. **Mezclar meses perjudica la clasificacion:** La condicion Mixta (89.48%) se situa 3–4 puntos por debajo de cualquier mes individual. Esto confirma que cada punto temporal posee una **firma neural especifica** que el clasificador explota. Al mezclar datos de diferentes meses, la variabilidad inter-temporal se convierte en ruido que degrada el rendimiento. Este hallazgo tiene implicaciones clinicas: **los modelos de clasificacion de MI deberian calibrarse por separado para cada etapa del proceso de rehabilitacion**.
+4. **Mezclar meses perjudica la clasificacion:** La condicion Mixta (89.01%) se situa ~5 puntos por debajo de cualquier mes individual. Esto confirma que cada punto temporal posee una **firma neural especifica** que el clasificador explota. Al mezclar datos de diferentes meses, la variabilidad inter-temporal se convierte en ruido que degrada el rendimiento. Este hallazgo tiene implicaciones clinicas: **los modelos de clasificacion de MI deberian calibrarse por separado para cada etapa del proceso de rehabilitacion**.
 
 ### 7.3 Modelos por mes
 
-En el Mes 1, LogisticRegression demuestra ser el mejor clasificador (93.27%), beneficiandose de la separabilidad lineal que las caracteristicas espectrales proporcionan en la fase aguda. En los Meses 3 y 6, RandomForest y LogisticRegression comparten el mejor rendimiento (~93%), indicando que tanto enfoques lineales como no lineales convergen cuando la senal es suficientemente rica.
+LogisticRegression es el mejor clasificador en los tres meses individuales (Mes 1: 93.67%, Mes 3: 94.27%, Mes 6: 93.69%), beneficiandose de la separabilidad lineal que las caracteristicas espectrales proporcionan en todas las etapas de la rehabilitacion. En la condicion Mixta, en cambio, RandomForest domina (89.01% vs 72.26% de LogisticRegression) — con mas variabilidad inter-temporal en los datos, un modelo no lineal captura mejor la estructura de las clases que un clasificador lineal.
 
 ---
 
@@ -372,7 +380,7 @@ En el Mes 1, LogisticRegression demuestra ser el mejor clasificador (93.27%), be
 
 ### 8.1 Comparacion con la literatura
 
-El estudio de referencia (Martinez-Peon et al., 2024) reporto un 96.42% de accuracy empleando kNN con HRS_p64 en 10 sujetos, 20 electrodos, y validacion intra-sujeto con 5-fold cross-validation en WEKA. Nuestro mejor resultado (93.27%) se situa ~3 puntos por debajo. Las diferencias metodologicas que explicarian esta brecha incluyen:
+El estudio de referencia (Martinez-Peon et al., 2024) reporto un 96.42% de accuracy empleando kNN con HRS_p64 en 10 sujetos, 20 electrodos, y validacion intra-sujeto con 5-fold cross-validation en WEKA. Nuestro mejor resultado (94.55%, Mes 3, solo caracteristicas espectrales) se situa ~2 puntos por debajo. Las diferencias metodologicas que explicarian esta brecha incluyen:
 
 | Factor | Martinez-Peon 2024 | Este estudio |
 |--------|-------------------|-------------|
@@ -389,13 +397,13 @@ La seleccion dirigida de electrodos sobre areas motoras (PM, pre-SMA, DLPFC, IPL
 
 ### 8.2 El rol de las caracteristicas espectrales
 
-El hallazgo mas significativo de este estudio es que las caracteristicas espectrales —particularmente los ratios ERD y las potencias de banda— proporcionan la mayor parte del poder discriminativo (88–93% en solitario). Esto es consistente con decadas de investigacion en BCI que establecen el ERD en bandas mu/beta como el correlato neurofisiologico primario de la activacion sensoriomotora durante MI. Sin embargo, varios aspectos matizan esta conclusion:
+El hallazgo mas significativo de este estudio es que las caracteristicas espectrales —particularmente los ratios ERD y las potencias de banda— proporcionan la mayor parte del poder discriminativo (88–95% en solitario). Esto es consistente con decadas de investigacion en BCI que establecen el ERD en bandas mu/beta como el correlato neurofisiologico primario de la activacion sensoriomotora durante MI. Sin embargo, varios aspectos matizan esta conclusion:
 
-1. **Las caracteristicas fractales NO son redundantes:** Los 8 metodos fractales combinados alcanzan 81–84% sin ninguna caracteristica espectral, un rendimiento que seria clinicamente aceptable en muchas aplicaciones de BCI. Para un estudio cuyo enfoque principal es el analisis fractal, este resultado es significativo.
+1. **Las caracteristicas fractales NO son redundantes:** Los 8 metodos fractales combinados alcanzan 80–82% sin ninguna caracteristica espectral (excluyendo la condicion Mixta), un rendimiento que seria clinicamente aceptable en muchas aplicaciones de BCI. Para un estudio cuyo enfoque principal es el analisis fractal, este resultado es significativo — y ahora refleja una version corregida de `HRS_p64` que ejecuta particiones reales (`p=8`) en lugar de degenerar silenciosamente a Hurst Original (ver nota metodologica al inicio del documento).
 
 2. **Los fractales y espectrales miden aspectos diferentes de la senal:** Mientras las caracteristicas espectrales cuantifican la **distribucion de energia en frecuencia**, las fractales cuantifican la **complejidad temporal y las correlaciones de largo alcance**. Que ambas familias alcancen rendimientos comparables (espectrales algo superiores) sugiere que la dinamica neuronal durante MI se manifiesta simultaneamente en ambos dominios.
 
-3. **La redundancia parcial es esperable:** Dado que ambas familias operan sobre el mismo segmento de EEG, es esperable que capturen informacion parcialmente solapada. El hecho de que la combinacion aporte solo 0–3 puntos adicionales sugiere que la informacion **unicamente fractal** es limitada, pero no nula.
+3. **La redundancia parcial es esperable:** Dado que ambas familias operan sobre el mismo segmento de EEG, es esperable que capturen informacion parcialmente solapada. El hecho de que la combinacion aporte entre −0.28 y +1.38 puntos adicionales (segun el mes) sugiere que la informacion **unicamente fractal** es limitada, pero no nula.
 
 ### 8.3 Limitaciones
 
@@ -407,11 +415,11 @@ El hallazgo mas significativo de este estudio es que las caracteristicas espectr
 
 ### 8.4 Implicaciones clinicas
 
-1. **Clasificacion por etapa:** La degradacion del rendimiento al mezclar meses (89.48% vs ~93% per-month) sugiere que los sistemas BCI para rehabilitacion deberian recalibrarse periodicamente para adaptarse a los cambios en los patrones EEG del paciente a lo largo del tiempo.
+1. **Clasificacion por etapa:** La degradacion del rendimiento al mezclar meses (89.01% vs ~93.7–94.3% per-month) sugiere que los sistemas BCI para rehabilitacion deberian recalibrarse periodicamente para adaptarse a los cambios en los patrones EEG del paciente a lo largo del tiempo.
 
 2. **Ventana optima de 2.8 segundos:** Este valor, determinado empiricamente, es clinicamente razonable: es suficientemente corto para permitir retroalimentacion en tiempo casi real, y suficientemente largo para capturar la dinamica completa del ERD.
 
-3. **Fase aguda viable:** El alto rendimiento en el Mes 1 (93.27%) es alentador para la intervencion temprana con BCI, una ventana temporal donde la neuroplasticidad es maxima.
+3. **Rendimiento estable en toda la rehabilitacion:** El alto rendimiento se mantiene practicamente constante entre el Mes 1 (93.67%, fase aguda), el Mes 3 (94.27%, sub-agudo) y el Mes 6 (93.69%, cronico), lo que es alentador tanto para la intervencion temprana con BCI (ventana de neuroplasticidad maxima) como para su uso sostenido a lo largo de todo el proceso de rehabilitacion.
 
 ---
 
@@ -419,17 +427,19 @@ El hallazgo mas significativo de este estudio es que las caracteristicas espectr
 
 1. El tamano de ventana optimo para la extraccion de caracteristicas fractales y espectrales en MI post-AVC es de **700 muestras (2.8 segundos)** con segmentacion contigua al 0% de traslape.
 
-2. Empleando **validacion intra-sujeto con 5-fold CV (80/20)** y el subset combinado **Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales**, se alcanza un **93.27% de accuracy** (F1=0.9326) en la clasificacion de niveles de fuerza MVR 10% vs 40% durante el Mes 1 post-AVC, superando el objetivo del 80% por un margen de 13 puntos.
+2. Empleando **validacion intra-sujeto con 5-fold CV (80/20)** y el subset combinado **Δ-Rescaled Range / Δ-Higuchi / Δ-DFA / Δ-Semivariograma / Δ-Promedio + 13 Caracteristicas Espectrales**, se alcanza un **94.27% de accuracy** (F1=0.9427) en la clasificacion de niveles de fuerza MVR 10% vs 40% durante el Mes 3 post-AVC, superando el objetivo del 80% por un margen de 14 puntos. Los Meses 1 (93.67%) y 6 (93.69%) alcanzan un rendimiento practicamente equivalente con el mismo subset.
 
-3. Las caracteristicas **espectrales en solitario** (potencias de banda, ratios ERD, entropia) alcanzan 88–93%, demostrando ser el factor dominante en la discriminacion. No obstante, las caracteristicas **fractales en solitario** (8 metodos) alcanzan 81–84%, validando su capacidad como enfoque independiente para la clasificacion de MI.
+3. Las caracteristicas **espectrales en solitario** (potencias de banda, ratios ERD, entropia) alcanzan 88–95%, demostrando ser el factor dominante en la discriminacion — el mejor resultado del estudio (94.55%, Mes 3) se logra con espectrales solas. No obstante, las caracteristicas **fractales en solitario** (8 metodos, con `HRS_p64` corregido para ejecutar particiones reales) alcanzan 80–82%, validando su capacidad como enfoque independiente para la clasificacion de MI.
 
-4. La ganancia adicional de combinar fractales con espectrales es **marginal (0–3 puntos)**, indicando que ambas familias capturan informacion parcialmente redundante del mismo fenomeno neurofisiologico subyacente.
+4. La ganancia adicional de combinar fractales con espectrales es **marginal (entre −0.28 y +1.38 puntos segun el mes)**, indicando que ambas familias capturan informacion parcialmente redundante del mismo fenomeno neurofisiologico subyacente.
 
-5. **Mezclar meses perjudica la clasificacion**: la condicion Mixta (89.48%) se situa consistentemente por debajo de cualquier mes individual (~93%), confirmando que cada etapa temporal posee patrones neurales especificos que deben modelarse por separado.
+5. **Mezclar meses perjudica la clasificacion**: la condicion Mixta (89.01%) se situa consistentemente ~5 puntos por debajo de cualquier mes individual (93.7–94.3%), confirmando que cada etapa temporal posee patrones neurales especificos que deben modelarse por separado.
 
-6. **LogisticRegression y RandomForest** son los clasificadores mas robustos, con rendimientos practicamente identicos (~93%) al combinarse con caracteristicas espectrales en los tres momentos temporales.
+6. **LogisticRegression** es el clasificador mas robusto en los tres meses individuales (93.7–94.3% al combinarse con caracteristicas espectrales), mientras que **RandomForest** domina en la condicion Mixta (89.01%), donde la mayor variabilidad inter-temporal favorece a un modelo no lineal.
 
-7. El pipeline de **ventanas fijas W700** supera al pipeline de **epocas dinamicas basadas en ERD** (81.55% vs 73.56% con caracteristicas exclusivamente fractales), gracias a un mayor volumen de datos de entrenamiento y a la eliminacion del sesgo de seleccion del detector de eventos.
+7. El pipeline de **ventanas fijas W700** supera al pipeline de **epocas dinamicas basadas en ERD** (82.30% vs 73.56% con caracteristicas exclusivamente fractales), gracias a un mayor volumen de datos de entrenamiento y a la eliminacion del sesgo de seleccion del detector de eventos.
+
+8. **Correccion metodologica de `HRS_p64`:** se identifico y corrigio un error en el calculo del exponente de Hurst con particiones (`HRS`) que, para las duraciones de ventana usadas en este estudio (2.0–8.0 s), hacia que `p=64` (el valor optimo reportado por Martinez-Peon et al., 2024, para epocas mas largas) degenerara siempre en un calculo identico al Hurst Original — verificado numericamente sin excepciones. Se ajusto a `p=8`, el mayor valor que efectivamente ejecuta el pooling particionado sobre sub-series reales en ventanas de 700 muestras. Todas las cifras de este documento que involucran HRS reflejan ya esta correccion.
 
 ---
 
