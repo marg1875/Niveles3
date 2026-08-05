@@ -45,7 +45,13 @@ C_MONTHS = {"Month 1": "#377EB8", "Month 3": "#4DAF4A", "Month 6": "#E41A1C"}
 
 ALL_CHANNELS = cfg.CHANNEL_NAMES
 PER_CH_METHODS_BASIC = ["RS", "Higuchi", "DFA", "Variogram"]
-RESULTS_CSV = os.path.join(cfg.CLASSIFICATION_DIR, "results_W700_fractal_extended.csv")
+# NOTE: was "results_W700_fractal_extended.csv" (no "_v2") — a stale
+# filename that scripts/classify_fractal_extended.py stopped writing to at
+# some point (it writes "..._v2.csv"). Every plot below that reads via
+# _load_results() was silently drawing from an older classification run.
+# v2 is a strict superset of columns (adds Patient_Accuracy_Mean/Std,
+# N_Patients) with the same row count/structure, so this is a safe swap.
+RESULTS_CSV = os.path.join(cfg.CLASSIFICATION_DIR, "results_W700_fractal_extended_v2.csv")
 FEATURES_CSV = os.path.join(cfg.FEATURES_DIR, "Fixed_W700_3class_Features.csv")
 PLOTS_DIR = cfg.PLOTS_DIR
 
@@ -305,6 +311,134 @@ def plot_per_channel_comparison(output_dir=None):
     print("  [OK] per_channel_comparison.png")
 
 
+# ==================== PLOT 3b (heatmap alternative, added separately) ====================
+def plot_per_channel_comparison_heatmap(output_dir=None):
+    """Heatmap alternative to plot_per_channel_comparison() above.
+
+    Same 7-model x 10-feature-subset x 3-month data (including the same
+    TUNED_INDIVIDUAL/TUNED_BASIC hardcoded overrides), rendered as an
+    annotated heatmap instead of grouped bars. The grouped-bar version
+    packs 7*10=70 bars into each of 3 subplots, which is dense enough to be
+    hard to read at print size; a heatmap reads the same numbers via color
+    + text instead of 70 adjacent bar heights.
+
+    Does NOT modify or replace plot_per_channel_comparison() or its output
+    file — saves to a separate "per_channel_comparison_heatmap.png".
+    """
+    output_dir = _ensure_dir() if output_dir is None else output_dir
+    df = _load_results()
+    sub3 = df[(df["Class_Type"] == "3class") & (df["Group"] == "B")]
+
+    pc_ids = ["B2_HO_pc", "B3_HV_pc", "B1_HRS_pc", "B4_Martinez_pc",
+              "_RS", "_Higuchi", "_DFA", "_Semivariogram",
+              "B5_Basic_pc", "B6_All7_pc"]
+    pc_labels = ["Hurst (HO)", "Hurst—Semivariogram (HV)", "Hurst R/S (HRS) p=64",
+                 "HO + HRS + HV", "RS", "Higuchi", "DFA", "Semivariogram",
+                 "RS+Higuchi+DFA+Semivariogram", "All 7 (Basic+HO+HRS+HV)"]
+    model_order = ["SVM", "kNN", "RandomForest", "NaiveBayes", "LogisticRegression", "MLP", "DecisionTree"]
+    model_display = {"SVM": "SVM", "kNN": "k-NN", "RandomForest": "Random Forest",
+                     "NaiveBayes": "Naive Bayes", "LogisticRegression": "Logistic Regression",
+                     "MLP": "MLP", "DecisionTree": "Decision Tree"}
+
+    # Identical lookup tables to plot_per_channel_comparison(), duplicated
+    # rather than shared so neither function depends on the other.
+    TUNED_INDIVIDUAL = {
+        "Mes 1": {
+            "_RS": {"SVM": 57.76, "kNN": 47.24, "RandomForest": 59.69, "NaiveBayes": 44.08,
+                    "LogisticRegression": 53.98, "MLP": 53.06, "DecisionTree": 52.35},
+            "_Higuchi": {"SVM": 75.20, "kNN": 65.31, "RandomForest": 70.51, "NaiveBayes": 47.24,
+                         "LogisticRegression": 76.12, "MLP": 65.82, "DecisionTree": 65.82},
+            "_DFA": {"SVM": 66.02, "kNN": 62.35, "RandomForest": 67.76, "NaiveBayes": 46.22,
+                     "LogisticRegression": 62.86, "MLP": 56.02, "DecisionTree": 59.59},
+            "_Semivariogram": {"SVM": 67.55, "kNN": 60.92, "RandomForest": 65.82, "NaiveBayes": 46.53,
+                               "LogisticRegression": 64.59, "MLP": 58.78, "DecisionTree": 58.57},
+        },
+        "Mes 6": {
+            "_RS": {"SVM": 67.98, "kNN": 63.47, "RandomForest": 73.62, "NaiveBayes": 52.76,
+                    "LogisticRegression": 66.18, "MLP": 61.56, "DecisionTree": 62.68},
+            "_Higuchi": {"SVM": 81.17, "kNN": 81.85, "RandomForest": 83.20, "NaiveBayes": 57.50,
+                         "LogisticRegression": 84.22, "MLP": 73.96, "DecisionTree": 77.45},
+            "_DFA": {"SVM": 77.00, "kNN": 73.39, "RandomForest": 80.83, "NaiveBayes": 55.81,
+                     "LogisticRegression": 76.10, "MLP": 70.69, "DecisionTree": 73.39},
+            "_Semivariogram": {"SVM": 78.02, "kNN": 74.52, "RandomForest": 78.69, "NaiveBayes": 58.74,
+                               "LogisticRegression": 78.92, "MLP": 68.88, "DecisionTree": 73.62},
+        },
+        "Mes 3": {
+            "_RS": {"SVM": 61.36, "kNN": 57.91, "RandomForest": 66.18, "NaiveBayes": 53.64,
+                    "LogisticRegression": 58.27, "MLP": 50.09, "DecisionTree": 59.00},
+            "_Higuchi": {"SVM": 83.45, "kNN": 76.45, "RandomForest": 80.36, "NaiveBayes": 53.45,
+                         "LogisticRegression": 80.82, "MLP": 57.73, "DecisionTree": 74.18},
+            "_DFA": {"SVM": 64.82, "kNN": 59.27, "RandomForest": 65.00, "NaiveBayes": 53.82,
+                     "LogisticRegression": 61.00, "MLP": 51.45, "DecisionTree": 57.55},
+            "_Semivariogram": {"SVM": 72.64, "kNN": 66.82, "RandomForest": 72.82, "NaiveBayes": 53.09,
+                               "LogisticRegression": 65.36, "MLP": 53.09, "DecisionTree": 65.45},
+        },
+    }
+    TUNED_BASIC = {
+        "Mes 1": {"SVM": 75.00, "kNN": 57.24, "RandomForest": 73.06, "NaiveBayes": 47.65,
+                  "LogisticRegression": 74.80, "MLP": 57.24, "DecisionTree": 60.82},
+        "Mes 3": {"SVM": 84.27, "kNN": 75.36, "RandomForest": 81.36, "NaiveBayes": 58.00,
+                  "LogisticRegression": 83.45, "MLP": 75.27, "DecisionTree": 74.36},
+        "Mes 6": {"SVM": 85.46, "kNN": 76.55, "RandomForest": 83.09, "NaiveBayes": 63.13,
+                  "LogisticRegression": 83.99, "MLP": 77.79, "DecisionTree": 77.34},
+    }
+
+    months_disp = ["Month 1", "Month 3", "Month 6"]
+    months_key = ["Mes 1", "Mes 3", "Mes 6"]
+
+    # Build one (n_subsets x n_models) accuracy matrix per month first, so
+    # all three heatmaps can share one color scale (same principle as the
+    # kappa_comparison.png x-axis fix: comparable panels need comparable ranges).
+    matrices = []
+    for mkey in months_key:
+        ms = sub3[sub3["Month"] == mkey]
+        mat = np.full((len(pc_ids), len(model_order)), np.nan)
+        for r, sid in enumerate(pc_ids):
+            for c, mname in enumerate(model_order):
+                if sid == "B5_Basic_pc" and mkey in TUNED_BASIC:
+                    mat[r, c] = TUNED_BASIC[mkey].get(mname, np.nan)
+                elif sid.startswith("_") and mkey in TUNED_INDIVIDUAL and sid in TUNED_INDIVIDUAL[mkey]:
+                    mat[r, c] = TUNED_INDIVIDUAL[mkey][sid].get(mname, np.nan)
+                else:
+                    row = ms[(ms["Model"] == mname) & (ms["Feature_Subset"] == sid)]
+                    if len(row) > 0:
+                        mat[r, c] = row.iloc[0]["Accuracy"] * 100
+        matrices.append(mat)
+
+    vmin = np.nanmin([np.nanmin(m) for m in matrices])
+    vmax = np.nanmax([np.nanmax(m) for m in matrices])
+
+    fig, axes = plt.subplots(1, 3, figsize=(19, 7), sharey=True)
+    im = None
+    for ax, mat, mdisp in zip(axes, matrices, months_disp):
+        im = ax.imshow(mat, cmap="YlGnBu", vmin=vmin, vmax=vmax, aspect="auto")
+        ax.set_xticks(range(len(model_order)))
+        ax.set_xticklabels([model_display[m] for m in model_order], rotation=40, ha="right", fontsize=8)
+        ax.set_title(mdisp, fontweight="bold")
+        # Text color flips to white on the darkest (highest-accuracy) cells
+        # for legibility against the sequential colormap.
+        threshold = vmin + (vmax - vmin) * 0.65
+        for r in range(mat.shape[0]):
+            for c in range(mat.shape[1]):
+                v = mat[r, c]
+                if np.isnan(v):
+                    continue
+                color = "white" if v >= threshold else "black"
+                ax.text(c, r, f"{v:.1f}", ha="center", va="center", fontsize=7, color=color)
+    axes[0].set_yticks(range(len(pc_labels)))
+    axes[0].set_yticklabels(pc_labels, fontsize=8)
+
+    cbar = fig.colorbar(im, ax=axes, fraction=0.02, pad=0.02)
+    cbar.set_label("Accuracy (%)")
+
+    fig.suptitle("Per-Channel Feature Subset Comparison (3-class, SMOTE) — heatmap view",
+                 fontweight="bold", y=1.03)
+    path = os.path.join(output_dir, "per_channel_comparison_heatmap.png")
+    fig.savefig(path, bbox_inches="tight")
+    plt.close(fig)
+    print("  [OK] per_channel_comparison_heatmap.png")
+
+
 # ==================== PLOT 4 ====================
 def plot_channel_scaling(output_dir=None):
     output_dir = _ensure_dir() if output_dir is None else output_dir
@@ -502,9 +636,14 @@ def plot_kappa_comparison(output_dir=None):
                     "NaiveBayes": "#A6D854", "LogisticRegression": "#FFD92F",
                     "MLP": "#FC8D62", "DecisionTree": "#E41A1C"}
 
-    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-    for ax_idx, (mkey, mdisp) in enumerate(zip(months_key, months_disp)):
-        ax = axes[ax_idx]
+    # First pass: build each month's data and find the global max kappa, so
+    # all three subplots can share one x-axis range (was auto-scaled
+    # per-subplot before — Month 1 topped out near 0.6 while Month 3/6 went
+    # to ~0.8, making the bars visually similar in length across subplots
+    # despite representing different absolute kappa values).
+    months_data = []
+    global_max_kappa = 0.0
+    for mkey, mdisp in zip(months_key, months_disp):
         if mkey in TUNED_KAPPA:
             data = [{"model": m, "kappa": TUNED_KAPPA[mkey][m], "acc": TUNED_ACC[mkey][m]} for m in model_order]
         else:
@@ -515,6 +654,15 @@ def plot_kappa_comparison(output_dir=None):
                 if len(row) > 0:
                     data.append({"model": mname, "kappa": row.iloc[0]["Kappa"], "acc": row.iloc[0]["Accuracy"] * 100})
         data.sort(key=lambda d: d["kappa"], reverse=True)
+        months_data.append(data)
+        if data:
+            global_max_kappa = max(global_max_kappa, max(d["kappa"] for d in data))
+
+    shared_xlim = global_max_kappa * 1.35  # headroom for the "k=... (...%)" text labels
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+    for ax_idx, (mdisp, data) in enumerate(zip(months_disp, months_data)):
+        ax = axes[ax_idx]
         models = [d["model"] for d in data]
         kappas = [d["kappa"] for d in data]
         accs = [d["acc"] for d in data]
@@ -527,6 +675,7 @@ def plot_kappa_comparison(output_dir=None):
         ax.set_xlabel("Cohen's Kappa")
         ax.set_title(mdisp, fontweight="bold")
         ax.axvline(x=0, color="black", linewidth=0.5)
+        ax.set_xlim(0, shared_xlim)
         for bar, k, acc in zip(ax.patches, kappas, accs):
             ax.text(bar.get_width() + 0.02, bar.get_y() + bar.get_height() / 2,
                     f"k={k:.3f}  ({acc:.1f}%)", va="center", fontsize=8)

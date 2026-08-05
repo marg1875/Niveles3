@@ -162,17 +162,21 @@ def plot_tuning_impact():
     bars1 = ax.bar(x - width / 2, defaults, width, label="SVM (default)", color="#D1E5F0", edgecolor="white")
     bars2 = ax.bar(x + width / 2, tuned, width, label="SVM (optimized)", color="#2166AC", edgecolor="white")
 
+    # Label offsets scaled up ~2.8x vs. the original (were tuned for the old
+    # set_ylim(60, 94) truncated axis, where 34 data-units filled the figure
+    # height; on the honest 0-95 axis the same absolute offsets left the
+    # value labels and the "+X pts" delta boxes visually overlapping.
     for bar, v in zip(bars1, defaults):
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5,
                 f"{v:.1f}%", ha="center", fontsize=9)
     for bar, v in zip(bars2, tuned):
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5,
                 f"{v:.1f}%", ha="center", fontsize=9, fontweight="bold", color="#2166AC")
 
     # Deltas
     for i, (d, t) in enumerate(zip(defaults, tuned)):
         delta = t - d
-        ax.annotate(f"+{delta:.1f} pts", (x[i] + width / 2, t + 3),
+        ax.annotate(f"+{delta:.1f} pts", (x[i] + width / 2, t + 8),
                     ha="center", fontsize=10, fontweight="bold", color="#2166AC",
                     bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.8))
 
@@ -183,7 +187,11 @@ def plot_tuning_impact():
     ax.set_title("SVM: default vs. optimized hyperparameters\n(Basic per-channel features + SMOTE, 3-class)", fontsize=14, fontweight="bold")
     ax.legend(loc="lower right", fontsize=11)
     ax.grid(True, alpha=0.3, axis="y", linestyle=":")
-    ax.set_ylim(60, 94)
+    # Was set_ylim(60, 94): a non-zero baseline on a BAR chart exaggerates
+    # the visual size of the default-vs-tuned gap (bar height is the visual
+    # encoding here, unlike a line chart) and was inconsistent with the
+    # sibling plot_spatial_vs_perchannel_updated() above, which starts at 0.
+    ax.set_ylim(0, 95)
 
     fig.tight_layout()
     path = os.path.join(OUTPUT_DIR, "tuning_impact.png")
