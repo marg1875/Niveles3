@@ -37,9 +37,15 @@ def get_channel_subset_features(df: pd.DataFrame, channel_config: str) -> pd.Dat
     indices = cfg.CHANNEL_SUBSETS[channel_config]
     channels = [cfg.CHANNEL_NAMES[i] for i in indices]
 
-    # If All-16, use pre-averaged columns directly
+    # If All-16, the pre-averaged columns are already what's needed — return
+    # as-is (no copy). Nothing below this branch mutates the frame in place;
+    # callers that need to filter rows (e.g. `df[mask]`) already get a new
+    # object from pandas, and get_feature_subset's "Delta-Stable" branch
+    # makes its own explicit .copy() before mutating. This path used to
+    # unconditionally copy a 412-column DataFrame on every call (~160x in
+    # classify_w700_full.py's experiment grid) for data that never changes.
     if channel_config == "All-16" or len(indices) == 16:
-        return df.copy()
+        return df
 
     result = df.copy()
 

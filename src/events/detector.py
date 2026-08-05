@@ -3,9 +3,10 @@ Event detection for both asymptomatic (motor imagery/ERD) and
 synchronous (stimulus-driven/markers) paradigms.
 """
 import numpy as np
-from scipy.signal import butter, filtfilt, find_peaks
+from scipy.signal import filtfilt, find_peaks
 
 import config as cfg
+from src.preprocessing.filters import _bandpass_coeffs
 
 
 def detect_erd_events(eeg_filtered: np.ndarray, data_raw: dict = None,
@@ -27,8 +28,10 @@ def detect_erd_events(eeg_filtered: np.ndarray, data_raw: dict = None,
     channel = cfg.CHANNEL_ERD  # Cz = index 5
     n_samples = eeg_filtered.shape[1]
 
-    # Extract mu/beta band from Cz
-    b, a = butter(4, cfg.MU_BAND, btype="bandpass", fs=fs)
+    # Extract mu/beta band from Cz — same cached design as
+    # src.preprocessing.filters.mu_beta_filter (order=4, cfg.MU_BAND).
+    low, high = cfg.MU_BAND
+    b, a = _bandpass_coeffs(fs, low, high, 4)
     signal_band = filtfilt(b, a, eeg_filtered[channel])
 
     # Compute energy (moving average, 1-second window)

@@ -18,8 +18,56 @@ All methods are normalized per channel. For multi-channel EEG, call
 compute_all_fractals() with the full array.
 """
 import numpy as np
+from scipy.signal import detrend
 
 import config as cfg
+
+
+def _blockwise_rs_mean(s: np.ndarray, n: int):
+    """Mean rescaled-range (R/S) statistic across non-overlapping blocks of length n.
+
+    Vectorized equivalent of the classic per-block loop used by compute_rs,
+    compute_ho and compute_hrs:
+
+        for j in range(n_blocks):
+            block = s[j*n:(j+1)*n]
+            std_block = np.std(block)
+            if std_block < 1e-10:
+                continue
+            y = np.cumsum(block - np.mean(block))
+            r = np.max(y) - np.min(y)
+            rs_sum += r / std_block
+            valid_blocks += 1
+        result = rs_sum / valid_blocks if valid_blocks > 0 else NaN
+
+    Reshapes the trailing remainder-free portion of `s` into (n_blocks, n) and
+    computes std/cumsum/max/min with axis=1 numpy ops instead of a Python loop.
+    Numerically equivalent (same per-block values, summed in a different order —
+    differences are far below float regression tolerance).
+
+    Args:
+        s: 1D detrended/centered signal.
+        n: Block length.
+
+    Returns:
+        (mean_rs, valid_blocks): mean_rs is NaN when valid_blocks == 0.
+    """
+    n_blocks = len(s) // n
+    if n_blocks == 0:
+        return np.nan, 0
+
+    blocks = s[: n_blocks * n].reshape(n_blocks, n)
+    std_blocks = np.std(blocks, axis=1)
+    valid = std_blocks > 1e-10
+    valid_blocks = int(np.sum(valid))
+    if valid_blocks == 0:
+        return np.nan, 0
+
+    centered = blocks[valid] - np.mean(blocks[valid], axis=1, keepdims=True)
+    y = np.cumsum(centered, axis=1)
+    r = np.max(y, axis=1) - np.min(y, axis=1)
+    rs = r / std_blocks[valid]
+    return float(np.mean(rs)), valid_blocks
 
 
 def compute_all_fractals(segment: np.ndarray, fs: float = None) -> np.ndarray:
@@ -43,7 +91,10 @@ def compute_all_fractals(segment: np.ndarray, fs: float = None) -> np.ndarray:
         dfa = compute_dfa(signal, fs=fs)
         var = compute_variogram(signal, fs=fs)
         ho = compute_ho(signal, fs=fs)
-        hrs = compute_hrs(signal, fs=fs, p=cfg.BEST_HRS_PARTITION)
+        # HO is passed in so compute_hrs's fallback path (which, for every
+        # window length used in this pipeline, always degenerates to HO —
+        # see compute_hrs docstring) doesn't recompute it from scratch.
+        hrs = compute_hrs(signal, fs=fs, p=cfg.BEST_HRS_PARTITION, precomputed_ho=ho)
 
         values = [rs, hig, dfa, var]
         avg = np.nanmean(values)
@@ -103,20 +154,9 @@ def compute_rs(signal: np.ndarray, fs: float = None) -> float:
         if n_blocks < cfg.RS_MIN_BLOCKS_PER_SCALE:
             continue
 
-        rs_sum = 0.0
-        valid_blocks = 0
-        for j in range(n_blocks):
-            block = s_norm[j * n : (j + 1) * n]
-            std_block = np.std(block)
-            if std_block < 1e-10:
-                continue
-            y = np.cumsum(block - np.mean(block))
-            r = np.max(y) - np.min(y)
-            rs_sum += r / std_block
-            valid_blocks += 1
-
+        mean_rs, valid_blocks = _blockwise_rs_mean(s_norm, n)
         if valid_blocks > 0:
-            rs_values.append(rs_sum / valid_blocks)
+            rs_values.append(mean_rs)
             valid_scales.append(n)
 
     if len(valid_scales) < cfg.RS_MIN_VALID_SCALES:
@@ -212,14 +252,11 @@ def compute_dfa(signal: np.ndarray, fs: float = None) -> float:
         if n_windows < cfg.DFA_MIN_WINDOWS_PER_SCALE:
             continue
 
-        error_total = 0.0
-        for j in range(n_windows):
-            idx = np.arange(j * n, (j + 1) * n)
-            window = y[idx]
-            t = np.arange(n)
-            p = np.polyfit(t, window, 1)
-            trend = np.polyval(p, t)
-            error_total += np.sum((window - trend) ** 2)
+        # Reshape into (n_windows, n) and linearly detrend every window in one
+        # vectorized call instead of a per-window np.polyfit/np.polyval loop.
+        windows = y[: n_windows * n].reshape(n_windows, n)
+        residuals = detrend(windows, axis=1, type="linear")
+        error_total = np.sum(residuals ** 2)
 
         F_n = np.sqrt(error_total / (n_windows * n))
         if F_n > 1e-10:
@@ -307,26 +344,15 @@ def compute_ho(signal: np.ndarray, fs: float = None) -> float:
         if n < 4 or n >= N:
             continue
         n_blocks = N // n
-        if n_blocks < 3:
+        if n_blocks < cfg.HO_MIN_BLOCKS_PER_SCALE:
             continue
 
-        rs_sum = 0.0
-        valid_blocks = 0
-        for j in range(n_blocks):
-            block = s[j * n : (j + 1) * n]
-            std_block = np.std(block)
-            if std_block < 1e-10:
-                continue
-            y = np.cumsum(block - np.mean(block))
-            r = np.max(y) - np.min(y)
-            rs_sum += r / std_block
-            valid_blocks += 1
-
+        mean_rs, valid_blocks = _blockwise_rs_mean(s, n)
         if valid_blocks > 0:
-            rs_values.append(rs_sum / valid_blocks)
+            rs_values.append(mean_rs)
             valid_scales.append(n)
 
-    if len(valid_scales) < 5:
+    if len(valid_scales) < cfg.HO_MIN_VALID_SCALES:
         return np.nan
 
     log_scales = np.log10(valid_scales)
@@ -335,19 +361,34 @@ def compute_ho(signal: np.ndarray, fs: float = None) -> float:
     return float(p[0])
 
 
-def compute_hrs(signal: np.ndarray, fs: float = None, p: int = 64) -> float:
+def compute_hrs(signal: np.ndarray, fs: float = None, p: int = 64,
+                 precomputed_ho: float = None) -> float:
     """HRS = Hurst with Rescaled Range using partitions (Martinez-Peon 2024).
 
     Divides the signal into p contiguous subseries of length N//p.
     For each subseries, computes R/S at internal scales. Pools R/S
     statistics across all p subseries, then fits a single Hurst value.
 
-    Falls back to compute_ho() if any subseries has too few points (<10).
+    Falls back to compute_ho() in three cases: (1) any subseries has too few
+    points (<10); (2) the per-subseries scale range is degenerate (scale_max
+    <= scale_min); or (3) every candidate scale fails the >=3-blocks-per-
+    subseries check, leaving `pooled_rs` empty. Case (3) is easy to miss by
+    inspection alone — e.g. for N=700, p=16 passes check (2) (scale_max=17 >
+    scale_min=16) but still degenerates via check (3), because the only
+    candidate scales in that narrow [16,17] range give just 2 blocks per
+    43-sample subseries. Verified empirically (1440 real EEG samples) at
+    N=700: p=64/32/16 all silently collapse to HO; only p<=8 exercises real
+    partitioned pooling. See config.py's BEST_HRS_PARTITION (set to 8) and
+    the corresponding note in INFORME_COMPLETO.md.
 
     Args:
         signal: 1D float array.
         fs: Sampling rate.
         p: Number of partitions.
+        precomputed_ho: Optional HO value already computed on this exact
+            signal (e.g. by compute_all_fractals). When given, it is reused
+            instead of recomputing compute_ho() from scratch on fallback —
+            purely a performance optimization, does not change the result.
 
     Returns:
         Hurst exponent H or NaN on failure.
@@ -355,6 +396,11 @@ def compute_hrs(signal: np.ndarray, fs: float = None, p: int = 64) -> float:
     fs = fs or cfg.FS
     s = np.asarray(signal, dtype=float).flatten()
     N = len(s)
+
+    def _ho_fallback():
+        if precomputed_ho is not None:
+            return precomputed_ho
+        return compute_ho(signal, fs=fs)
 
     if N < 16:
         return np.nan
@@ -366,12 +412,12 @@ def compute_hrs(signal: np.ndarray, fs: float = None, p: int = 64) -> float:
 
     subseries_len = N // p
     if subseries_len < 10:
-        return compute_ho(signal, fs=fs)
+        return _ho_fallback()
 
     scale_min = max(int(cfg.DFA_SCALE_MIN_SEC * fs), 16)
     scale_max = min(int(subseries_len * 0.4), 64)
     if scale_max <= scale_min:
-        return compute_ho(signal, fs=fs)
+        return _ho_fallback()
 
     n_scales = 15
     scales_raw = np.unique(
@@ -385,13 +431,15 @@ def compute_hrs(signal: np.ndarray, fs: float = None, p: int = 64) -> float:
     for n in scales_raw:
         if n < 4 or n >= subseries_len:
             continue
-        if subseries_len // n < 3:
+        if subseries_len // n < cfg.HO_MIN_BLOCKS_PER_SCALE:
             continue
         pooled_rs[n] = 0.0
         pooled_counts[n] = 0
 
     if not pooled_rs:
-        return compute_ho(signal, fs=fs)
+        return _ho_fallback()
+
+    scale_keys = list(pooled_rs.keys())  # hoisted out of the per-partition loop
 
     for i in range(p):
         sub = s[i * subseries_len : (i + 1) * subseries_len]
@@ -400,24 +448,14 @@ def compute_hrs(signal: np.ndarray, fs: float = None, p: int = 64) -> float:
         if np.std(sub) < 1e-10:
             continue
 
-        for n in list(pooled_rs.keys()):
+        for n in scale_keys:
             n_blocks = sub_N // n
-            if n_blocks < 3:
+            if n_blocks < cfg.HO_MIN_BLOCKS_PER_SCALE:
                 continue
-            rs_sum = 0.0
-            valid_blocks = 0
-            for j in range(n_blocks):
-                block = sub[j * n : (j + 1) * n]
-                std_block = np.std(block)
-                if std_block < 1e-10:
-                    continue
-                y = np.cumsum(block - np.mean(block))
-                r = np.max(y) - np.min(y)
-                rs_sum += r / std_block
-                valid_blocks += 1
 
+            mean_rs, valid_blocks = _blockwise_rs_mean(sub, n)
             if valid_blocks > 0:
-                pooled_rs[n] += rs_sum / valid_blocks
+                pooled_rs[n] += mean_rs
                 pooled_counts[n] += 1
 
     valid_scales = []
@@ -427,7 +465,7 @@ def compute_hrs(signal: np.ndarray, fs: float = None, p: int = 64) -> float:
             valid_scales.append(n)
             rs_values.append(pooled_rs[n] / pooled_counts[n])
 
-    if len(valid_scales) < 5:
+    if len(valid_scales) < cfg.HO_MIN_VALID_SCALES:
         return np.nan
 
     log_scales = np.log10(valid_scales)
@@ -456,12 +494,17 @@ def compute_hrs_vector(signal: np.ndarray, fs: float = None,
     s = np.asarray(signal, dtype=float).flatten()
     N = len(s)
 
+    # Several p values in HRS_PARTITION_VALUES fall back to compute_ho() on
+    # this same signal (see compute_hrs docstring) — compute it once and
+    # reuse across all of them instead of recomputing per p value.
+    ho_cache = compute_ho(signal, fs=fs)
+
     result = {}
     for p_val in p_values:
         if p_val > N // 10:
             continue
         key = f"HRS_p{p_val}"
-        result[key] = compute_hrs(signal, fs=fs, p=p_val)
+        result[key] = compute_hrs(signal, fs=fs, p=p_val, precomputed_ho=ho_cache)
 
     return result
 
@@ -480,7 +523,7 @@ def compute_fractal_vector(signal: np.ndarray, fs: float = None) -> np.ndarray:
     dfa = compute_dfa(signal, fs=fs)
     var = compute_variogram(signal, fs=fs)
     ho = compute_ho(signal, fs=fs)
-    hrs = compute_hrs(signal, fs=fs, p=cfg.BEST_HRS_PARTITION)
+    hrs = compute_hrs(signal, fs=fs, p=cfg.BEST_HRS_PARTITION, precomputed_ho=ho)
     values = [rs, hig, dfa, var]
     avg = np.nanmean(values)
     return np.array([rs, hig, dfa, var, avg, ho, hrs, var])
