@@ -2,88 +2,66 @@
 import os, sys, time, numpy as np, pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config as cfg
-from tqdm import tqdm
+from joblib import Parallel, delayed
 from src.io.loader import load_eeg, list_mat_files
 from src.io.exporter import save_epoch_csv, build_feature_record
 from src.preprocessing.filters import preprocess_eeg, z_score_normalize
 from src.preprocessing.ica import apply_ica
+from src.preprocessing.segmentation import segment_fixed_window
 from src.features.fractal import compute_all_fractals, compute_hrs_vector
 from src.features.spectral import compute_spectral_features
+from src.features.basal_reference import build_basal_reference
 
 W = 700  # samples = 2.8s at 250 Hz
 OVERLAP = 0.0
+N_BASAL = 5
 
-print("=" * 60)
-print("FULL EXTRACTION W700 (2.8s, 0% overlap, per-channel+HRS+spectral)")
-print("=" * 60)
 
-t0 = time.time()
-files = list_mat_files()
-print("Found {} .mat files".format(len(files)))
+def process_file(filepath):
+    """Load, preprocess and extract all W700 epoch records for one .mat file.
 
-all_epochs = []
-
-for fi, filepath in enumerate(tqdm(files, desc="Files"), 1):
+    Returns a list of record dicts (possibly empty if the file is skipped).
+    Factored out of the old flat per-file loop so it can run in a worker
+    process via joblib.Parallel — each file's pipeline (load -> filter ->
+    ICA -> segment -> fractal/spectral features) is independent of every
+    other file, so this is embarrassingly parallel across cfg.N_JOBS workers.
+    """
     try:
         eeg, _, meta = load_eeg(filepath)
     except Exception:
-        continue
+        return []
 
     mvr_level = meta.get("mvr_level", -1)
     if mvr_level not in (0, 10, 40):
-        continue
+        return []
 
     eeg_clean = preprocess_eeg(eeg)
     if cfg.USE_ICA:
         eeg_clean = apply_ica(eeg_clean)
     eeg_zs = z_score_normalize(eeg_clean)
 
-    n_samples = eeg_zs.shape[1]
-    if n_samples < W:
-        continue
+    if eeg_zs.shape[1] < W:
+        return []
 
-    segments = []
-    starts = []
-    for s in range(0, n_samples - W + 1, W):
-        segments.append(eeg_zs[:, s:s + W])
-        starts.append(s)
-
+    segments, starts = segment_fixed_window(eeg_zs, W, OVERLAP)
     if not segments:
-        continue
+        return []
 
-    n_basal = min(5, len(segments))
-    basal_segments = segments[:n_basal]
-
-    basal_global = np.full(8, np.nan)
-    basal_per_ch = None
-    basal_ref_segment = None
-
-    if n_basal > 0:
-        basal_features_all = np.zeros((n_basal, eeg_zs.shape[0], 8))
-        for b in range(n_basal):
-            basal_features_all[b] = compute_all_fractals(basal_segments[b])
-        basal_global = np.nanmean(basal_features_all, axis=(0, 1))
-        basal_per_ch = np.nanmean(basal_features_all[..., :8], axis=0)
-        basal_ref_segment = np.nanmean(np.stack(basal_segments), axis=0)
-
-    basal_martinez = {}
-    if not np.all(np.isnan(basal_global)):
-        basal_martinez = {"HO": float(basal_global[5]), "HV": float(basal_global[7])}
-        if basal_ref_segment is not None:
-            hrs_basal = compute_hrs_vector(np.nanmean(basal_ref_segment, axis=0), fs=cfg.FS)
-            basal_martinez.update(hrs_basal)
-    else:
-        basal_martinez = {"HO": np.nan, "HV": np.nan}
-        for p in cfg.HRS_PARTITION_VALUES:
-            basal_martinez["HRS_p{}".format(p)] = np.nan
-
+    basal = build_basal_reference(segments, n_basal=N_BASAL, fs=cfg.FS)
     window_sec = W / cfg.FS
 
+    file_records = []
     for i, (seg, start) in enumerate(zip(segments, starts)):
         event_time = (start + W // 2) / cfg.FS
 
-        # First n_basal segments are class 0 (basal/rest)
-        seg_class = 0 if i < n_basal else mvr_level
+        # All segments (including the first N_BASAL used as the Δ reference)
+        # carry the file's MVR class label. The basal segments are used only
+        # to compute the Δ (Active - Basal) fractal features and the ERD
+        # ratios — they are not relabeled as a separate "rest" class,
+        # matching the published methodology (INFORME_COMPLETO.md) and the
+        # convention used in the reference literature (Martinez-Peon 2024).
+        # See src/events/basal.py for the full basal-convention note.
+        seg_class = mvr_level
 
         pc_features = compute_all_fractals(seg)
         spatial_mean = np.nanmean(seg, axis=0)
@@ -102,31 +80,62 @@ for fi, filepath in enumerate(tqdm(files, desc="Files"), 1):
             "HV": float(np.nanmean(pc_features[:, 7])),
         }
         active_martinez.update(hrs_vector)
-        martinez_features = {"basal": basal_martinez, "active": active_martinez}
+        martinez_features = {"basal": basal.basal_martinez, "active": active_martinez}
 
-        spectral = compute_spectral_features(seg, fs=cfg.FS, basal_segment=basal_ref_segment)
+        spectral = compute_spectral_features(
+            seg, fs=cfg.FS, basal_band_powers=basal.basal_band_powers
+        )
 
         record = build_feature_record(
             patient=meta["paciente"], month=meta["month"],
             paradigm=meta.get("paradigm", "ASYNCHRONOUS"),
             mvr_class=seg_class, event_time_sec=event_time,
-            basal_global=basal_global, stable_features=stable,
+            basal_global=basal.basal_global, stable_features=stable,
             original_filename=meta["filename"],
-            per_channel_features={"basal_per_ch": basal_per_ch, "active_per_ch": pc_features[:, :8]},
+            per_channel_features={"basal_per_ch": basal.basal_per_ch,
+                                   "active_per_ch": pc_features[:, :8]},
             martinez_features=martinez_features, spectral_features=spectral,
         )
-        all_epochs.append(record)
+        file_records.append(record)
 
-elapsed = time.time() - t0
-print("\nExtracted {} epochs in {:.1f} min".format(len(all_epochs), elapsed / 60))
+    return file_records
 
-if all_epochs:
-    out_path = os.path.join(cfg.FEATURES_DIR, "Fixed_W700_3class_Features.csv")
-    save_epoch_csv(all_epochs, out_path)
-    print("Saved: {}".format(out_path))
 
-    df = pd.DataFrame(all_epochs)
-    print("Classes: {}".format(df["MVR_Class"].value_counts().sort_index().to_dict()))
-    print("Sessions: {}".format(df["Session"].value_counts().sort_index().to_dict()))
-    print("Patients: {}".format(df["Patient"].value_counts().sort_index().to_dict()))
-    print("Columns: {}".format(len(df.columns)))
+def main():
+    print("=" * 60)
+    print("FULL EXTRACTION W700 (2.8s, 0% overlap, per-channel+HRS+spectral)")
+    print("=" * 60)
+
+    t0 = time.time()
+    files = list_mat_files()
+    print("Found {} .mat files".format(len(files)))
+    print("Parallel workers (cfg.N_JOBS): {}".format(cfg.N_JOBS))
+
+    # Each file's full pipeline (load/filter/ICA/segment/features) is
+    # independent of every other file — embarrassingly parallel across
+    # cfg.N_JOBS worker processes instead of one sequential Python loop.
+    results = Parallel(n_jobs=cfg.N_JOBS, verbose=5)(
+        delayed(process_file)(filepath) for filepath in files
+    )
+    all_epochs = [record for file_records in results for record in file_records]
+
+    elapsed = time.time() - t0
+    print("\nExtracted {} epochs in {:.1f} min".format(len(all_epochs), elapsed / 60))
+
+    if all_epochs:
+        out_path = os.path.join(cfg.FEATURES_DIR, "Fixed_W700_3class_Features.csv")
+        save_epoch_csv(all_epochs, out_path)
+        print("Saved: {}".format(out_path))
+
+        df = pd.DataFrame(all_epochs)
+        print("Classes: {}".format(df["MVR_Class"].value_counts().sort_index().to_dict()))
+        print("Sessions: {}".format(df["Session"].value_counts().sort_index().to_dict()))
+        print("Patients: {}".format(df["Patient"].value_counts().sort_index().to_dict()))
+        print("Columns: {}".format(len(df.columns)))
+
+
+if __name__ == "__main__":
+    # The __main__ guard is required for joblib's process-based backend on
+    # Windows (spawn-based multiprocessing re-imports this module in each
+    # worker; without the guard, extraction would recursively re-launch).
+    main()
