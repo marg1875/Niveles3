@@ -5,21 +5,17 @@ Extracts segments from periods of no-task activity:
 1. Gaps between events > MIN_REST_GAP_SEC
 2. Start of recording (if no gaps found)
 
-NOTE on two different "basal" conventions in this codebase — this is an
-intentional difference between pipelines, not an inconsistency to reconcile:
+Used by both the dynamic ERD pipeline (scripts/extract_features.py,
+extract_features_fixed.py) and, as of this revision, the fixed-window W700
+pipeline (scripts/extract_w700_full.py) — both use the same gap-based
+genuine-rest detection as (a) the Δ (Active − Basal) reference and (b) a
+real MVR_Class==0 "rest" label for 3-class classification, via the
+`segment_sec` parameter below (W700 needs 700-sample/2.8s epochs, not the
+2.0s default the dynamic pipeline uses).
 
-- **Dynamic ERD pipeline** (scripts/extract_features.py, extract_features_fixed.py):
-  uses extract_basal_epochs() below — gap-based detection of genuine rest
-  periods, used both as the Δ reference AND as a separate MVR_Class==0
-  "basal" label for 3-class classification.
-- **Fixed-window W700 pipeline** (scripts/extract_w700_full.py, the
-  "final"/reported pipeline): uses the first `n_basal` contiguous segments of
-  each file only as the Δ (Active − Basal) reference. Those segments keep the
-  file's actual MVR class label (10% or 40%) rather than being relabeled as a
-  separate rest class — matching the convention of the reference literature
-  (Martinez-Peon et al., 2024) and confirmed with the thesis author. See the
-  "seg_class" comment in extract_w700_full.py and the methodology note at the
-  top of INFORME_COMPLETO.md.
+Earlier revisions of the W700 pipeline used "the first N contiguous W700
+segments of the file" as a Δ-only reference, without a rest class — see
+INFORME_COMPLETO.md's methodology note and git history for why that changed.
 """
 import numpy as np
 
@@ -27,13 +23,17 @@ import config as cfg
 
 
 def extract_basal_epochs(eeg: np.ndarray, event_indices: np.ndarray,
-                          fs: float = None) -> np.ndarray:
+                          fs: float = None, segment_sec: float = None) -> np.ndarray:
     """Extract basal (rest) epochs from inter-event gaps.
 
     Args:
         eeg: (n_channels, n_samples) preprocessed and bandpass-filtered EEG.
         event_indices: Sample indices of detected events.
         fs: Sampling rate.
+        segment_sec: Duration of each basal epoch in seconds. Defaults to
+            cfg.BASAL_SEGMENT_DURATION_SEC (2.0s, the dynamic pipeline's
+            value). Pass e.g. W/fs to get epochs matching a fixed-window
+            pipeline's active-segment length.
 
     Returns:
         (n_basal_epochs, n_channels, segment_samples) array of basal segments,
@@ -41,7 +41,8 @@ def extract_basal_epochs(eeg: np.ndarray, event_indices: np.ndarray,
     """
     fs = fs or cfg.FS
     n_samples = eeg.shape[1]
-    segment_samples = round(cfg.BASAL_SEGMENT_DURATION_SEC * fs)
+    segment_sec = segment_sec if segment_sec is not None else cfg.BASAL_SEGMENT_DURATION_SEC
+    segment_samples = round(segment_sec * fs)
     gap_min = cfg.MIN_REST_GAP_SEC
     gap_pre = cfg.PRE_EVENT_MARGIN_SEC
     max_per_gap = cfg.MAX_BASAL_PER_GAP
@@ -60,7 +61,14 @@ def extract_basal_epochs(eeg: np.ndarray, event_indices: np.ndarray,
             continue
 
         # Compute rest period boundaries for this interval
-        if i == 0:
+        if len(t_events) == 0:
+            # No events detected at all (e.g. ERD detection found nothing) —
+            # the single interval spans the whole recording; there is no
+            # t_events[0] to reference. Previously this fell into the i==0
+            # branch below and raised IndexError.
+            start_rest = 0
+            end_rest = n_samples
+        elif i == 0:
             # Before first event
             start_rest = 0
             end_rest = int(t_events[0] * fs) - int(gap_pre * fs)
