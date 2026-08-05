@@ -38,7 +38,18 @@ CHANNEL_SUBSETS = {
 
 # ===== HRS (HURST WITH PARTITIONS) — Martinez-Peon 2024 =====
 HRS_PARTITION_VALUES = [2, 4, 8, 16, 32, 64, 128]
-BEST_HRS_PARTITION = 64
+# Martinez-Peon (2024) found p=64 optimal, but that was calibrated for their
+# (longer) epoch length. For this study's W700 = 700-sample (2.8s @ 250Hz)
+# epochs, p=64 (and, less obviously, p=16/32 too — see compute_hrs docstring
+# in src/features/fractal.py) never has enough samples per sub-series for a
+# valid log-log R/S fit, so compute_hrs() silently falls back to HO for every
+# epoch — verified numerically: compute_hrs(x, p=64) == compute_ho(x) exactly
+# for every window length actually used in this study (2.0-8.0s / 500-2000
+# samples). p=8 was empirically confirmed (1440 real EEG samples across 6
+# files) to be the largest partition count that still exercises genuine
+# per-subseries R/S pooling at N=700 (0% identical-to-HO, vs. 100% for
+# p=16/32/64). See INFORME_COMPLETO.md for the corresponding table update.
+BEST_HRS_PARTITION = 8
 HRS_PARTITION_NAMES = [f"HRS_p{p}" for p in HRS_PARTITION_VALUES]  # ["HRS_p2", ..., "HRS_p128"]
 MARTINEZ_FEATURE_NAMES = ["HO", "HRS_p64", "HV"]  # The 3 from the paper
 MARTINEZ_ALL_P_NAMES = ["HO", "HV"] + [f"HRS_p{p}" for p in HRS_PARTITION_VALUES]
@@ -199,6 +210,16 @@ DFA_MIN_WINDOWS_PER_SCALE = 3
 VARIOGRAM_MAX_LAG_RATIO = 0.20   # max lag as fraction of N (was fixed at 15 in Niveles2)
 VARIOGRAM_MIN_LAGS = 10           # at least 10 lag points
 VARIOGRAM_MIN_VALID_POINTS = 5
+
+# HO / HRS (Hurst Original / Hurst with partitions) — previously hardcoded
+# literals inline in compute_ho/compute_hrs (src/features/fractal.py) instead
+# of config constants, unlike RS_MIN_BLOCKS_PER_SCALE/RS_MIN_VALID_SCALES
+# above. Extracted here at the SAME values (3 and 5) — this is a pure
+# cleanup, not a behavior change. Note these differ from RS's own thresholds
+# (5 blocks/scale, also 5 valid scales) — that inconsistency predates this
+# refactor and was intentional-by-omission rather than a bug; left as-is.
+HO_MIN_BLOCKS_PER_SCALE = 3
+HO_MIN_VALID_SCALES = 5
 
 # ===== STABILITY VALIDATION =====
 STABILITY_WINDOWS_SEC = [2.0, 3.0, 4.0, 5.0]
