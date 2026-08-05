@@ -4,6 +4,22 @@ Basal (resting-state) epoch extraction for computing baseline fractal features.
 Extracts segments from periods of no-task activity:
 1. Gaps between events > MIN_REST_GAP_SEC
 2. Start of recording (if no gaps found)
+
+NOTE on two different "basal" conventions in this codebase — this is an
+intentional difference between pipelines, not an inconsistency to reconcile:
+
+- **Dynamic ERD pipeline** (scripts/extract_features.py, extract_features_fixed.py):
+  uses extract_basal_epochs() below — gap-based detection of genuine rest
+  periods, used both as the Δ reference AND as a separate MVR_Class==0
+  "basal" label for 3-class classification.
+- **Fixed-window W700 pipeline** (scripts/extract_w700_full.py, the
+  "final"/reported pipeline): uses the first `n_basal` contiguous segments of
+  each file only as the Δ (Active − Basal) reference. Those segments keep the
+  file's actual MVR class label (10% or 40%) rather than being relabeled as a
+  separate rest class — matching the convention of the reference literature
+  (Martinez-Peon et al., 2024) and confirmed with the thesis author. See the
+  "seg_class" comment in extract_w700_full.py and the methodology note at the
+  top of INFORME_COMPLETO.md.
 """
 import numpy as np
 

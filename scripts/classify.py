@@ -304,6 +304,12 @@ def main():
                     continue
 
                 for val_type in validation_types:
+                    # NOTE: the block below (through pbar.set_postfix_str) was
+                    # previously dedented one level, outside this model loop —
+                    # only the last model in MODELS ever got its result saved,
+                    # even though all of them were trained. Fixed; see the
+                    # roc_data/ directory, which was previously 100%
+                    # LogisticRegression_*.npz despite 9 models being run.
                     for model_name, model_def in MODELS.items():
                         experiment_count += 1
                         t_exp = time.time()
@@ -319,59 +325,59 @@ def main():
                                 pat_col_c
                             )
 
-                    exp_time = time.time() - t_exp
+                        exp_time = time.time() - t_exp
 
-                    # Save ROC data (concatenate folds to handle unequal sizes)
-                    roc_data = agg.pop("roc_data", None)
-                    if roc_data is not None:
-                        roc_path = os.path.join(
-                            cfg.ROC_DATA_DIR,
-                            f"{model_name}_{ch_conf}_{feat_subset}_{class_type}_{val_type}.npz"
-                        )
-                        classes = sorted(np.unique(y_c))
-                        yt_flat = np.concatenate(roc_data["y_true"])
-                        yp_flat = np.concatenate(roc_data["y_pred"])
-                        yb_flat = np.concatenate([p for p in roc_data.get("y_proba", []) if p is not None]) if roc_data.get("y_proba") else None
-                        if yb_flat is not None and len(yb_flat) == 0:
-                            yb_flat = None
-                        save_kw = {"y_true": yt_flat, "y_pred": yp_flat, "classes": classes}
-                        if yb_flat is not None:
-                            save_kw["y_proba"] = yb_flat
-                        np.savez_compressed(roc_path, **save_kw)
+                        # Save ROC data (concatenate folds to handle unequal sizes)
+                        roc_data = agg.pop("roc_data", None)
+                        if roc_data is not None:
+                            roc_path = os.path.join(
+                                cfg.ROC_DATA_DIR,
+                                f"{model_name}_{ch_conf}_{feat_subset}_{class_type}_{val_type}.npz"
+                            )
+                            classes = sorted(np.unique(y_c))
+                            yt_flat = np.concatenate(roc_data["y_true"])
+                            yp_flat = np.concatenate(roc_data["y_pred"])
+                            yb_flat = np.concatenate([p for p in roc_data.get("y_proba", []) if p is not None]) if roc_data.get("y_proba") else None
+                            if yb_flat is not None and len(yb_flat) == 0:
+                                yb_flat = None
+                            save_kw = {"y_true": yt_flat, "y_pred": yp_flat, "classes": classes}
+                            if yb_flat is not None:
+                                save_kw["y_proba"] = yb_flat
+                            np.savez_compressed(roc_path, **save_kw)
 
-                    row = {
-                        "Model": model_name,
-                        "Channel_Config": ch_conf,
-                        "N_Channels": len(cfg.CHANNEL_SUBSETS[ch_conf]),
-                        "Feature_Subset": feat_subset,
-                        "N_Features": len(feat_cols),
-                        "Class_Type": class_type,
-                        "Validation": val_type,
-                        "N_Samples": len(y_c),
-                        "Time_sec": round(exp_time, 1),
-                    }
-                    row.update(agg)
+                        row = {
+                            "Model": model_name,
+                            "Channel_Config": ch_conf,
+                            "N_Channels": len(cfg.CHANNEL_SUBSETS[ch_conf]),
+                            "Feature_Subset": feat_subset,
+                            "N_Features": len(feat_cols),
+                            "Class_Type": class_type,
+                            "Validation": val_type,
+                            "N_Samples": len(y_c),
+                            "Time_sec": round(exp_time, 1),
+                        }
+                        row.update(agg)
 
-                    # Primary metrics
-                    acc = agg.get("accuracy_mean", np.nan)
-                    f1 = agg.get("f1_macro_mean", np.nan)
-                    n_nan = not np.isnan(acc)
+                        # Primary metrics
+                        acc = agg.get("accuracy_mean", np.nan)
+                        f1 = agg.get("f1_macro_mean", np.nan)
+                        n_nan = not np.isnan(acc)
 
-                    results.append(row)
+                        results.append(row)
 
-                    pbar.update(1)
-                    if n_nan:
-                        pbar.set_postfix_str(
-                            f"[{experiment_count}/{total_experiments}] "
-                            f"({100*experiment_count/total_experiments:.0f}%) "
-                            f"{model_name} | {ch_conf} | {feat_subset} | {class_type} | Acc={acc:.3f}"
-                        )
-                    else:
-                        pbar.set_postfix_str(
-                            f"[{experiment_count}/{total_experiments}] "
-                            f"({100*experiment_count/total_experiments:.0f}%) "
-                            f"{model_name} | {ch_conf} | {feat_subset} | {class_type} | FAILED"
-                        )
+                        pbar.update(1)
+                        if n_nan:
+                            pbar.set_postfix_str(
+                                f"[{experiment_count}/{total_experiments}] "
+                                f"({100*experiment_count/total_experiments:.0f}%) "
+                                f"{model_name} | {ch_conf} | {feat_subset} | {class_type} | Acc={acc:.3f}"
+                            )
+                        else:
+                            pbar.set_postfix_str(
+                                f"[{experiment_count}/{total_experiments}] "
+                                f"({100*experiment_count/total_experiments:.0f}%) "
+                                f"{model_name} | {ch_conf} | {feat_subset} | {class_type} | FAILED"
+                            )
 
     pbar.close()
 
