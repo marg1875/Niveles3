@@ -1,5 +1,23 @@
-numpy>=1.24
-scipy>=1.10
-pandas>=2.0
-matplotlib>=3.7
-scikit-learn>=1.3
+# Pinned to exact versions (previously unpinned >=X.Y ranges). This matters
+# for this pipeline specifically because src/preprocessing/ica.py's FastICA
+# is an iterative/randomized algorithm: even with a fixed random_state, its
+# convergence path — and therefore every downstream fractal/spectral feature
+# — can differ subtly across scikit-learn/scipy/numpy releases. Verified in
+# this session: re-running the unmodified extraction logic on an unpinned,
+# newer environment (numpy 2.4/scipy 1.17/scikit-learn 1.8, vs whatever was
+# installed when INFORME_COMPLETO.md's numbers were generated) reproduced
+# the same class distribution but NOT bit-identical feature values or
+# accuracy (93.67% vs the published 93.27% for Month1, etc.). Pinning here
+# makes future re-runs on this environment reproducible; if you set up on a
+# new machine, reinstall from this exact lockfile before regenerating any
+# published numbers.
+numpy==2.4.3
+scipy==1.17.1
+pandas==3.0.1
+matplotlib==3.10.8
+scikit-learn==1.8.0
+tqdm==4.68.2
+
+# Dev / testing
+pytest==9.0.2
+joblib==1.5.3
