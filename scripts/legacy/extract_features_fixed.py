@@ -26,7 +26,9 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Moved to scripts/legacy/ (one level deeper than scripts/) — three dirname()
+# calls to reach the repo root, not two.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import config as cfg
 import numpy as np
