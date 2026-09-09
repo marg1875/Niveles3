@@ -6,6 +6,7 @@ import pandas as pd
 warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config as cfg
+from joblib import Parallel, delayed
 from src.classification.features import get_channel_subset_features, get_feature_subset
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedKFold
@@ -20,12 +21,15 @@ from sklearn.metrics import accuracy_score, f1_score, cohen_kappa_score, mean_ab
 from imblearn.over_sampling import SMOTE
 
 # ===== MODELS (7, matching Martinez-Peon 2024) =====
+# n_jobs=1 on the individual estimators: parallelism now happens one level up,
+# across the (month x subset x class_type x model) grid via joblib in
+# __main__ below — leaving these at n_jobs=-1 too would oversubscribe cores.
 MODELS = {
     "SVM":                SVC(random_state=42, probability=True),
-    "kNN":                KNeighborsClassifier(n_neighbors=10, metric="chebyshev", n_jobs=-1),
-    "RandomForest":       RandomForestClassifier(n_estimators=300, random_state=42, n_jobs=-1),
+    "kNN":                KNeighborsClassifier(n_neighbors=10, metric="chebyshev", n_jobs=1),
+    "RandomForest":       RandomForestClassifier(n_estimators=300, random_state=42, n_jobs=1),
     "NaiveBayes":         GaussianNB(),
-    "LogisticRegression": LogisticRegression(max_iter=2000, random_state=42, n_jobs=-1),
+    "LogisticRegression": LogisticRegression(max_iter=2000, random_state=42, n_jobs=1),
     "MLP":                MLPClassifier(hidden_layer_sizes=(7,), learning_rate_init=0.3,
                                          max_iter=1000, early_stopping=True, random_state=42),
     "DecisionTree":       DecisionTreeClassifier(max_features="sqrt", max_depth=10, random_state=42),
@@ -197,6 +201,68 @@ for label_base, methods in pc_subset_configs:
 
 MONTHS = [("Mixto", None), ("Mes 1", "Month1"), ("Mes 3", "Month3"), ("Mes 6", "Month6")]
 
+
+def _run_cell(df_raw, month_label, month_val, exp, ct, mname):
+    """Run one (month, feature subset, class_type, model) cell end to end —
+    feature extraction through classification — and return a result dict, or
+    None if the cell is skipped (too few samples/features/classes).
+
+    Factored out of the old quadruple-nested loop so the whole grid can run
+    via joblib.Parallel (previously fully sequential, no parallelism at all —
+    1848 cells, each an intra-subject CV with SMOTE per training fold for
+    3-class). Feature extraction (build_features) is now repeated once per
+    model instead of shared across the 7 models per (month, exp, ct) cell —
+    a small redundant cost (column selection + nan_to_num) traded for fully
+    independent, trivially parallel tasks.
+    """
+    try:
+        if exp["type"] in ("sm", "sm_custom"):
+            X, y, feat_cols, df_filt = _extract_xy_spatial_mean(df_raw, exp, month_val)
+        elif exp["type"] in ("pc", "pc_subset"):
+            X, y, feat_cols, df_filt = _extract_xy_per_channel(df_raw, exp, month_val)
+        else:
+            return None
+    except Exception:
+        return None
+
+    if len(feat_cols) < 1 or len(y) < 10:
+        return None
+
+    if ct == "2class":
+        mask_2c = np.isin(y, (10, 40))
+        X_c, y_c = X[mask_2c], y[mask_2c]
+        pat = df_filt.iloc[mask_2c]["Patient"].values
+    else:
+        X_c, y_c = X.copy(), y.copy()
+        pat = df_filt["Patient"].values
+
+    if len(y_c) < 10 or len(np.unique(y_c)) < 2:
+        return None
+
+    use_smote = (ct == "3class")
+    model = MODELS[mname]
+    all_yt, all_yp, patient_accs = _classify_patient_cv(X_c, y_c, pat, model, use_smote)
+
+    if len(all_yt) == 0:
+        return None
+
+    acc = accuracy_score(all_yt, all_yp)
+    f1 = f1_score(all_yt, all_yp, average="macro", zero_division=0)
+    kappa = cohen_kappa_score(all_yt, all_yp)
+    mae = mean_absolute_error(all_yt, all_yp)
+    mean_pat_acc = np.mean(patient_accs) if patient_accs else np.nan
+    std_pat_acc = np.std(patient_accs) if patient_accs else np.nan
+    return {
+        "Model": mname, "Feature_Subset": exp["id"],
+        "Feature_Label": exp["label"], "Channel_Config": exp.get("channels", ["All-16"])[0],
+        "Class_Type": ct, "Month": month_label,
+        "Accuracy": acc, "F1_Macro": f1, "Kappa": kappa, "MAE": mae,
+        "N": len(all_yt), "N_Features": len(feat_cols), "Group": exp["group"],
+        "Patient_Accuracy_Mean": mean_pat_acc, "Patient_Accuracy_Std": std_pat_acc,
+        "N_Patients": len(patient_accs),
+    }
+
+
 # ===========================================================================
 # MAIN
 # ===========================================================================
@@ -220,77 +286,27 @@ if __name__ == "__main__":
     print()
 
     t0 = time.time()
-    results = []
-    done = 0
 
-    for month_label, month_val in MONTHS:
-        for exp in EXPERIMENTS:
-            for ct in ["3class", "2class"]:
-                done += 1
+    # Full (month x subset x class_type x model) grid, run in parallel —
+    # each cell is fully independent (see _run_cell). Was a sequential
+    # quadruple-nested loop; cfg.N_JOBS workers instead of 1.
+    cells = [
+        (month_label, month_val, exp, ct, mname)
+        for month_label, month_val in MONTHS
+        for exp in EXPERIMENTS
+        for ct in ["3class", "2class"]
+        for mname in MODEL_ORDER
+    ]
+    print(f"Running {len(cells)} cells on {cfg.N_JOBS} workers...")
 
-                # Build features
-                try:
-                    if exp["type"] in ("sm", "sm_custom"):
-                        X, y, feat_cols, df_filt = _extract_xy_spatial_mean(df_raw, exp, month_val)
-                    elif exp["type"] in ("pc", "pc_subset"):
-                        X, y, feat_cols, df_filt = _extract_xy_per_channel(df_raw, exp, month_val)
-                    else:
-                        continue
-                except Exception as e:
-                    print(f"[{done}/{n_total}] SKIP {exp['id']:25s}: {e}")
-                    continue
-
-                if len(feat_cols) < 1 or len(y) < 10:
-                    continue
-
-                # Handle class type
-                if ct == "2class":
-                    mask_2c = np.isin(y, (10, 40))
-                    X_c, y_c = X[mask_2c], y[mask_2c]
-                    pat = df_filt.iloc[mask_2c]["Patient"].values
-                else:
-                    X_c, y_c = X.copy(), y.copy()
-                    pat = df_filt["Patient"].values
-
-                if len(y_c) < 10 or len(np.unique(y_c)) < 2:
-                    continue
-
-                use_smote = (ct == "3class")
-
-                for mname in MODEL_ORDER:
-                    model = MODELS[mname]
-                    all_yt, all_yp, patient_accs = _classify_patient_cv(X_c, y_c, pat, model, use_smote)
-
-                    if len(all_yt) > 0:
-                        acc = accuracy_score(all_yt, all_yp)
-                        f1 = f1_score(all_yt, all_yp, average="macro", zero_division=0)
-                        kappa = cohen_kappa_score(all_yt, all_yp)
-                        mae = mean_absolute_error(all_yt, all_yp)
-                        mean_pat_acc = np.mean(patient_accs) if patient_accs else np.nan
-                        std_pat_acc = np.std(patient_accs) if patient_accs else np.nan
-                        n_patients = len(patient_accs)
-                        results.append({
-                            "Model": mname, "Feature_Subset": exp["id"],
-                            "Feature_Label": exp["label"], "Channel_Config": exp.get("channels", ["All-16"])[0],
-                            "Class_Type": ct, "Month": month_label,
-                            "Accuracy": acc, "F1_Macro": f1, "Kappa": kappa, "MAE": mae,
-                            "N": len(all_yt), "N_Features": len(feat_cols), "Group": exp["group"],
-                            "Patient_Accuracy_Mean": mean_pat_acc, "Patient_Accuracy_Std": std_pat_acc,
-                            "N_Patients": n_patients,
-                        })
-
-                # Progress
-                last_batch = [r for r in results if r["Feature_Subset"] == exp["id"]
-                              and r["Month"] == month_label and r["Class_Type"] == ct]
-                best_acc = max(r["Accuracy"] for r in last_batch) if last_batch else 0
-                elapsed = time.time() - t0
-                eta = (elapsed / done) * (n_total - done) if done > 0 else 0
-                pct = done / n_total * 100
-                print(f"[{done:4d}/{n_total}] {exp['id']:25s} {ct:7s} {month_label:6s} | "
-                      f"{pct:5.1f}% | ETA {eta/60:5.1f}m | Best={best_acc:.4f}")
+    raw_results = Parallel(n_jobs=cfg.N_JOBS, verbose=5)(
+        delayed(_run_cell)(df_raw, month_label, month_val, exp, ct, mname)
+        for month_label, month_val, exp, ct, mname in cells
+    )
+    results = [r for r in raw_results if r is not None]
 
     elapsed = time.time() - t0
-    print(f"\nDone in {elapsed/60:.1f} min. {len(results)} results saved.")
+    print(f"\nDone in {elapsed/60:.1f} min. {len(results)}/{len(cells)} results saved.")
 
     df_r = pd.DataFrame(results)
     out_path = os.path.join(cfg.CLASSIFICATION_DIR, "results_W700_fractal_extended_v2.csv")
