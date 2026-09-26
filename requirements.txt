@@ -16,6 +16,7 @@ scipy==1.17.1
 pandas==3.0.1
 matplotlib==3.10.8
 scikit-learn==1.8.0
+imbalanced-learn==0.14.2  # SMOTE (classify_fractal_extended.py, analyze_intrasubject_w700.py)
 tqdm==4.68.2
 
 # Dev / testing
